@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -40,7 +40,7 @@
 </div>
 
 <!-- فرم ورود و ثبت‌نام -->
-<div id="auth-modal" style="max-width: 400px; margin: 60px auto; background: #111726; padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: #fff;">
+<div id="auth-modal" style="display:none; max-width: 400px; margin: 60px auto; background: #111726; padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: #fff;">
     <h2 style="color: #10B981; margin-top: 0;">ورود به ژورنال معاملاتی</h2>
     <p style="color: #9CA3AF; font-size: 14px; margin-bottom: 20px;">برای ذخیره ابری معاملات وارد حساب خود شوید</p>
 
@@ -50,8 +50,24 @@
 
     <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: #10B981; color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 10px;">ورود به حساب</button>
     <button onclick="handleSignUp()" style="width: 100%; padding: 12px; background: transparent; color: #10B981; border: 1px solid #10B981; border-radius: 6px; cursor: pointer;">ثبت‌نام حساب جدید</button>
+    <p style="margin-top:14px; margin-bottom:0;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:#10B981; font-size:12.5px; text-decoration:underline;">رمز عبور را فراموش کرده‌اید؟</a></p>
     <p id="auth-msg" style="color:#FF8A8A; font-size:12.5px; margin-top:14px; min-height:16px;"></p>
 </div>
+
+<!-- فرم تنظیم رمز عبور جدید (فقط بعد از کلیک روی لینک ایمیل بازیابی رمز نمایش داده می‌شود) -->
+<div id="reset-password-modal" style="display:none; max-width: 400px; margin: 60px auto; background: #111726; padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: #fff;">
+    <h2 style="color: #10B981; margin-top: 0;">تنظیم رمز عبور جدید</h2>
+    <p style="color: #9CA3AF; font-size: 14px; margin-bottom: 20px;">یک رمز عبور جدید برای حسابت وارد کن</p>
+    <input type="password" id="reset-password-input" placeholder="رمز عبور جدید" style="width: 100%; padding: 12px; margin-bottom: 16px; border-radius: 6px; border: 1px solid #2A364F; background: #080C14; color: #fff; box-sizing: border-box;">
+    <button onclick="handleUpdatePassword()" style="width: 100%; padding: 12px; background: #10B981; color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">ذخیرهٔ رمز جدید</button>
+    <p id="reset-password-msg" style="color:#FF8A8A; font-size:12.5px; margin-top:14px; min-height:16px;"></p>
+</div>
+
+<!-- اسپینر بارگذاری تا مشخص شدن وضعیت ورود -->
+<div id="auth-loader" style="display:flex; align-items:center; justify-content:center; min-height:60vh;">
+    <div style="width:34px; height:34px; border-radius:50%; border:3px solid #2A364F; border-top-color:#10B981; animation:ss-spin .8s linear infinite;"></div>
+</div>
+<style>@keyframes ss-spin{ to{ transform:rotate(360deg); } }</style>
 
 <div class="shell" id="app-shell" style="display: none;">
   <aside class="sidebar">
@@ -496,7 +512,7 @@
 <div class="toast" id="toast"></div>
 
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
