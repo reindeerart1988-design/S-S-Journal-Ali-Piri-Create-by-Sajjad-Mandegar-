@@ -30,14 +30,19 @@ function renderUserProfile(){
     const name = meta.full_name || '';
     const avatarUrl = meta.avatar_url || '';
     const initials = getInitials(currentUser);
+    const avatarHtml = avatarUrl ? `<img src="${avatarUrl}" alt="">` : initials;
 
     const chipAvatar = document.getElementById('profileAvatar');
     const chipName = document.getElementById('profileName');
-    if(chipAvatar) chipAvatar.innerHTML = avatarUrl ? `<img src="${avatarUrl}" alt="">` : initials;
+    const chipEmail = document.getElementById('profileEmailMini');
+    const mobileAvatar = document.getElementById('profileAvatarMobile');
+    if(chipAvatar) chipAvatar.innerHTML = avatarHtml;
+    if(mobileAvatar) mobileAvatar.innerHTML = avatarHtml;
     if(chipName) chipName.textContent = name || currentUser.email || '';
+    if(chipEmail) chipEmail.textContent = currentUser.email || '';
 
     const editAvatar = document.getElementById('profileEditAvatar');
-    if(editAvatar) editAvatar.innerHTML = avatarUrl ? `<img src="${avatarUrl}" alt="">` : initials;
+    if(editAvatar) editAvatar.innerHTML = avatarHtml;
 
     const nameInput = document.getElementById('profile-name-input');
     if(nameInput) nameInput.value = name;
@@ -123,6 +128,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const profileChip = document.getElementById('profileChip');
     if(profileChip) profileChip.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('account'); });
+
+    const sidebarProfile = document.getElementById('sidebarProfile');
+    if(sidebarProfile) sidebarProfile.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('account'); });
 
     const saveProfileBtn = document.getElementById('saveProfileBtn');
     if(saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfile);
