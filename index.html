@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -40,7 +41,17 @@
   </aside>
 
 <main>
-
+<!-- فرم ورود و ثبت‌نام -->
+<div id="auth-modal" style="max-width: 400px; margin: 30px auto; background: #111726; padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: #fff;">
+    <h2 style="color: #10B981; margin-top: 0;">ورود به ژورنال معاملاتی</h2>
+    <p style="color: #9CA3AF; font-size: 14px; margin-bottom: 20px;">برای ذخیره ابری معاملات وارد حساب خود شوید</p>
+    
+    <input type="email" id="auth-email" placeholder="ایمیل شما" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #2A364F; background: #080C14; color: #fff; box-sizing: border-box;">
+    <input type="password" id="auth-password" placeholder="رمز عبور" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #2A364F; background: #080C14; color: #fff; box-sizing: border-box;">
+    
+    <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: #10B981; color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 10px;">ورود به حساب</button>
+    <button onclick="handleSignUp()" style="width: 100%; padding: 12px; background: transparent; color: #10B981; border: 1px solid #10B981; border-radius: 6px; cursor: pointer;">ثبت‌نام حساب جدید</button>
+</div>
   <div class="warn-banner" id="storageWarn" role="alert">
     <span>⚠</span><span id="storageWarnText"></span>
   </div>
