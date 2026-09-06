@@ -69,6 +69,25 @@ a{ color:inherit; }
 .theme-switch button svg{ width:13px; height:13px; stroke:currentColor; fill:none; }
 .theme-switch button.on{ background:var(--emerald); color:#04150d; }
 .theme-switch button.on svg{ stroke:#04150d; }
+.profile-chip{ display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:var(--bg-2);
+  border-radius:999px; padding:4px 12px 4px 4px; margin-inline-start:8px; cursor:pointer; flex:0 0 auto;
+  -webkit-tap-highlight-color:transparent; transition:border-color .15s; }
+.profile-chip:hover{ border-color:var(--emerald-light); }
+.profile-avatar{ width:26px; height:26px; border-radius:50%; background:linear-gradient(155deg,var(--emerald-light),var(--emerald-dark));
+  color:#04150d; font-family:'Space Grotesk'; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center;
+  flex:0 0 auto; overflow:hidden; }
+.profile-avatar img{ width:100%; height:100%; object-fit:cover; }
+.profile-name{ font-size:11px; color:var(--muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media (max-width:640px){ .profile-name{ display:none; } .profile-chip{ padding:4px; } }
+.profile-edit-row{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+.profile-edit-avatar{ position:relative; width:76px; height:76px; border-radius:50%; flex:0 0 auto; cursor:pointer; display:block; }
+.profile-edit-avatar-inner{ width:76px; height:76px; border-radius:50%; background:linear-gradient(155deg,var(--emerald-light),var(--emerald-dark));
+  color:#04150d; font-family:'Space Grotesk'; font-weight:700; font-size:26px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.profile-edit-avatar-inner img{ width:100%; height:100%; object-fit:cover; }
+.profile-edit-avatar-hint{ position:absolute; inset:0; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:9.5px;
+  display:flex; align-items:center; justify-content:center; text-align:center; opacity:0; transition:opacity .15s; }
+.profile-edit-avatar:hover .profile-edit-avatar-hint{ opacity:1; }
+.profile-edit-fields{ flex:1; min-width:180px; }
 .kz-pill{ display:flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--bg-2);
   border-radius:10px; padding:6px 10px; font-size:11px; transition:.2s; flex:0 0 auto; white-space:nowrap;
   -webkit-tap-highlight-color:transparent; }
