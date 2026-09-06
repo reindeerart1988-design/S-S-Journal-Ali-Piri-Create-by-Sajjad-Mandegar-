@@ -7,10 +7,63 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
+function hideAuthLoader(){
+    const loader = document.getElementById('auth-loader');
+    if(loader) loader.style.display = 'none';
+}
+
 function showAuthMsg(msg){
     const el = document.getElementById('auth-msg');
     if(el) el.textContent = msg || '';
 }
+
+/* Sends a password-reset email; Supabase redirects the user back to this
+   same page with a recovery token in the URL, which onAuthStateChange
+   below turns into the "PASSWORD_RECOVERY" event. */
+async function handleForgotPassword(){
+    const email = (document.getElementById('auth-email').value || '').trim();
+    if(!email) return showAuthMsg('اول ایمیلت را در کادر بالا وارد کن، بعد روی این لینک بزن.');
+    try{
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + window.location.pathname
+        });
+        if(error) throw error;
+        showAuthMsg('ایمیل بازیابی رمز عبور ارسال شد — صندوق ورودی‌ات را چک کن.');
+    }catch(e){
+        showAuthMsg('خطا در ارسال ایمیل بازیابی: ' + e.message);
+    }
+}
+
+function showResetPasswordForm(){
+    hideAuthLoader();
+    const modal = document.getElementById('auth-modal');
+    const resetModal = document.getElementById('reset-password-modal');
+    const shell = document.getElementById('app-shell');
+    if(modal) modal.style.display = 'none';
+    if(shell) shell.style.display = 'none';
+    if(resetModal) resetModal.style.display = '';
+}
+
+async function handleUpdatePassword(){
+    const pw = document.getElementById('reset-password-input').value;
+    const msgEl = document.getElementById('reset-password-msg');
+    if(!pw || pw.length < 6){
+        if(msgEl) msgEl.textContent = 'رمز عبور باید حداقل ۶ کاراکتر باشد.';
+        return;
+    }
+    try{
+        const { error } = await supabaseClient.auth.updateUser({ password: pw });
+        if(error) throw error;
+        if(msgEl){ msgEl.style.color = '#10B981'; msgEl.textContent = 'رمز عبور تغییر کرد! در حال ورود…'; }
+        setTimeout(()=> location.href = window.location.origin + window.location.pathname, 1200);
+    }catch(e){
+        if(msgEl) msgEl.textContent = 'خطا: ' + e.message;
+    }
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if(event === 'PASSWORD_RECOVERY') showResetPasswordForm();
+});
 
 function getInitials(user){
     if(!user) return '?';
@@ -95,6 +148,7 @@ async function uploadAvatar(file){
 // نمایش برنامه بعد از ورود موفق / پنهان‌کردن فرم ورود
 function showApp(user){
     currentUser = user;
+    hideAuthLoader();
     const modal = document.getElementById('auth-modal');
     const shell = document.getElementById('app-shell');
     if (modal) modal.style.display = 'none';
@@ -105,6 +159,7 @@ function showApp(user){
 // نمایش فرم ورود / پنهان‌کردن برنامه (کاربر لاگین نیست)
 function showAuthForm(){
     currentUser = null;
+    hideAuthLoader();
     const modal = document.getElementById('auth-modal');
     const shell = document.getElementById('app-shell');
     if (modal) modal.style.display = '';
@@ -364,8 +419,8 @@ function rebuildIndex(){
     tradesByDate.get(k).push(t);
   }
 }
-function commitTrades(){ rebuildIndex(); const ok = saveTrades(trades); scheduleAutoSync(); return ok; }
-function refreshAll(){ populateFilters(); renderTradesList(); renderDashboard(); renderCalendar(); }
+async function commitTrades(){ rebuildIndex(); const localOk = saveTrades(trades); const cloudOk = await scheduleAutoSync(); return localOk && cloudOk; }
+function refreshAll(){ populateFilters(); renderTradesList(); renderDashboard(); renderCalendar(); renderAccountPreview(); }
 
 function calcCommission(t){ return (Number(t.lotSize)||0) * (Number(settings.commissionPerLot)||0); }
 function calcNet(t){ return (Number(t.grossPL)||0) - calcCommission(t); }
@@ -751,7 +806,7 @@ document.getElementById('cancelFormBtn').addEventListener('click', ()=>{
   editingTradeId=null;
 });
 
-document.getElementById('tradeForm').addEventListener('submit', e=>{
+document.getElementById('tradeForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const result = getSeg('segResult') || 'win';
   const rrRaw = Math.abs(Number(document.getElementById('f-rr').value)||0);
@@ -788,11 +843,11 @@ document.getElementById('tradeForm').addEventListener('submit', e=>{
   } else {
     trades.unshift({ id:uid(), createdAt:Date.now(), ...data });
   }
-  const ok = commitTrades();
+  const ok = await commitTrades();
   document.getElementById('tradeFormPanel').classList.add('hidden');
   editingTradeId = null;
   refreshAll();
-  showToast(ok ? 'معامله ذخیره شد ✓' : 'خطا در ذخیره‌سازی');
+  showToast(ok ? 'معامله ذخیره شد ✓' : 'در سرور ذخیره نشد — دوباره تلاش کن (اتصال اینترنت را چک کن)');
 });
 
 /* ============================================================
@@ -910,13 +965,13 @@ function renderTradeDetail(inner, id){
     s.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
   });
   inner.querySelector('[data-edit]').addEventListener('click', e=>{ e.stopPropagation(); openEditForm(t); });
-  inner.querySelector('[data-del]').addEventListener('click', e=>{
+  inner.querySelector('[data-del]').addEventListener('click', async e=>{
     e.stopPropagation();
     if(!confirm('این معامله حذف شود؟')) return;
     trades = trades.filter(x=>x.id!==id);
-    commitTrades();
+    const ok = await commitTrades();
     refreshAll();
-    showToast('معامله حذف شد');
+    showToast(ok ? 'معامله حذف شد' : 'حذف محلی انجام شد ولی هم‌گام‌سازی با سرور ناموفق بود');
   });
 }
 ['filterKillzone','filterDirection','filterResult'].forEach(id=>{
@@ -1566,12 +1621,14 @@ function renderAccountPreview(){
 }
 document.getElementById('acc-initial').addEventListener('input', renderAccountPreview);
 document.getElementById('acc-commission').addEventListener('input', renderAccountPreview);
-document.getElementById('saveSettingsBtn').addEventListener('click', ()=>{
+document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
   settings.initialBalance = Number(document.getElementById('acc-initial').value)||0;
   settings.commissionPerLot = Number(document.getElementById('acc-commission').value)||0;
-  const ok = saveSettings(settings);
-  updateFormCalcLine(); renderDashboard(); renderCalendar(); scheduleAutoSync();
-  showToast(ok ? 'تنظیمات ذخیره شد ✓' : 'خطا در ذخیره‌سازی');
+  const localOk = saveSettings(settings);
+  updateFormCalcLine(); renderDashboard(); renderCalendar();
+  const cloudOk = await scheduleAutoSync();
+  refreshAll();
+  showToast((localOk && cloudOk) ? 'تنظیمات ذخیره شد ✓' : 'در سرور ذخیره نشد — دوباره تلاش کن');
 });
 
 function clearAllData(){
@@ -2009,17 +2066,17 @@ let supaRowId = null;
 let supaSyncTimer = null;
 
 function scheduleAutoSync(){
-  if(!currentUser) return;
+  if(!currentUser) return Promise.resolve(true);
   /* Fire right away (no debounce): the app only calls this after discrete
      actions (submit/edit/delete a trade, save settings), not on every
      keystroke, so there's no flood risk — and immediate saving means a
      quick refresh right after saving a trade can never lose it. */
   clearTimeout(supaSyncTimer);
-  syncToSupabase(true);
+  return syncToSupabase(true);
 }
 
 async function syncToSupabase(silent){
-  if(!currentUser) return;
+  if(!currentUser) return true;
   try{
     setSyncStatus('در حال ذخیره در سرور…');
     const payload = { trades, settings, syncedAt:new Date().toISOString() };
@@ -2038,10 +2095,12 @@ async function syncToSupabase(silent){
     }
     setSyncStatus('همگام با سرور ✓', 'ok');
     if(!silent) showToast('در سرور ذخیره شد ✓');
+    return true;
   }catch(e){
     console.error('Supabase sync failed', e);
     setSyncStatus('ذخیره در سرور ناموفق بود', 'err');
     if(!silent) showToast('ذخیره در سرور ناموفق بود');
+    return false;
   }
 }
 
