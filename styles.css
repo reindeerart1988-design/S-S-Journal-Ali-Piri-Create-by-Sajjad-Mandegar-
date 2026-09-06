@@ -4,14 +4,7 @@
    glassy panels, Vazirmatn for Persian text, JetBrains Mono /
    Space Grotesk for numbers and financial data.
 ============================================================ */
-/* مخفی کردن تمام فریم‌های شناور مربوط به گوگل */
-iframe[src*="accounts.google.com"],
-div[id*="credential_picker"],
-#g_id_onload {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
+
 :root{
   /* Light theme kept for completeness, but the app defaults to dark */
   --blue:#1f5fd0; --blue-light:#4d86e8; --blue-dark:#12408f; --blue-soft:rgba(31,95,208,.12);
