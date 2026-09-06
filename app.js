@@ -1,0 +1,2043 @@
+/* ============================================================
+   DATA
+============================================================ */
+/* Shared first step for every setup: finding the liquidity POI on the 15m chart. */
+const STEP_POI = { n:'1', title:'Liquidity / POI', tf:'15m',
+  items:[ {key:'bsl',label:'BSL',en:true}, {key:'ssl',label:'SSL',en:true}, {key:'fvg',label:'FVG',en:true}, {key:'ob',label:'Order Block',en:true} ],
+  help:'یک نقطهٔ نقدینگی (POI) روی تایم‌فریم ۱۵ دقیقه پیدا کن: یک <b>BSL</b> یا <b>SSL</b> گرفته‌نشده، یا یک <b>FVG</b>/<b>Order Block</b> که قیمت به آن واکنش نشان می‌دهد. این نقطه، محل احتمالی برگشت قیمت است.',
+  helpAlways:true };
+const STEP_CRT_BOX = { n:'2', title:'CRT / BOX', tf:'15m',
+  items:[ {key:'crt',label:'CRT',en:true}, {key:'box',label:'BOX',en:true} ],
+  note:'فقط تا ۲ کندل بعد از C1 اجازهٔ ورود داریم؛ یعنی فقط C2 و C3. بعد از C3 دیگر ورود مجاز نیست.',
+  condNotes:[
+    {when:'crt', text:'C1: کندلی که CRT را تشکیل داده (کندل اول)'},
+    {when:'box', text:'C1: کندلی که به داخل رنج کندل اول برگشته و با بدنه بالای SSL یا پایین BSL کلوز داده'}
+  ] };
+const STEP_CONFIRMATION = { n:'3', title:'Confirmation', tf:'1m',
+  items:[ {key:'cisd',label:'CISD',en:true}, {key:'mss',label:'MSS',en:true} ],
+  help:'<b>CISD</b> یا <b>MSS</b> روی تایم‌فریم ۱ دقیقه یعنی شکست ساختار قیمت بعد از گرفتن لیکوییدیتی — نشانهٔ برگشت واقعی قیمت و آماده شدن برای ورود.' };
+const STEP_BREAK_OB = { n:'break', title:'Break OB', tf:'1m',
+  items:[ {key:'breakob',label:'✓'} ] };
+
+const SETUPS = {
+  standard: {
+    id:'standard', label:'استاندارد (۵۰٪)', tag:'STD', accent:'blue',
+    desc:'برگشت قیمت به ۵۰٪ همان Order Block بعد از تأیید CISD/MSS.',
+    steps:[
+      STEP_POI, STEP_CRT_BOX, STEP_CONFIRMATION,
+      { n:'4', title:'نقطهٔ ورود: ۵۰٪', tf:'1m',
+        items:[ {key:'ob50',label:'رسیدن به ۵۰٪ OB'} ],
+        help:'بعد از <b>CISD/MSS</b> صبر می‌کنیم قیمت به ۵۰٪ همان <b>Order Block</b> برگردد و از آنجا وارد شویم.' },
+      { n:'5', title:'Stop Run (SR)', tf:'1m', type:'conditional',
+        followKey:'followThrough', condKey:'sr', followLabel:'Follow Through', condLabel:'SR',
+        note:'اگر بعد از CISD/MSS سه کندل کلوز بدهد، حتماً باید منتظر Follow Through (FT) باشیم و Stop Run نیاز داریم.' },
+      { ...STEP_BREAK_OB, n:'6' }
+    ]
+  },
+  breaker: {
+    id:'breaker', label:'بریکر بلاک', tag:'BB', accent:'amber',
+    desc:'ورود با شکست Breaker Block پشت CISD/MSS، بدون نیاز به رسیدن قیمت به ۵۰٪.',
+    steps:[
+      STEP_POI, STEP_CRT_BOX, STEP_CONFIRMATION,
+      { n:'4', title:'Breaker Block پشت CISD/MSS', tf:'1m',
+        items:[ {key:'bb_cisd',label:'BB شناسایی شد',en:true} ],
+        help:'دنبال یک <b>Breaker Block</b> قبل از CISD/MSS می‌گردیم. وقتی قیمت داخل این محدوده شد، با شکست OB وارد می‌شویم. دقت کنیم! اگر استاپ خوردیم یعنی قیمت قصد دارد به ۵۰٪ برگردد — استاپ ما در واقع همان Stop Run بوده و باید طبق سناریوی ۵۰٪ دوباره ورودمان را انجام دهیم.' },
+      { ...STEP_BREAK_OB, n:'5' }
+    ]
+  },
+  aggressive: {
+    id:'aggressive', label:'ورود تهاجمی', tag:'AGG', accent:'red',
+    desc:'ورود زودهنگام در ۱ دقیقه با تأیید مومنتوم و iFVG، قبل از کلوز کندل ۱۵ دقیقه.',
+    steps:[
+      { ...STEP_POI, help:'یک ناحیهٔ نقدینگی (<b>BSL</b> یا <b>SSL</b>) که قیمت هنوز به آن نرسیده، هدف حرکت است.' },
+      { n:'2', title:'تشخیص مومنتوم لگ', tf:'15m',
+        items:[
+          {key:'leg_strong', label:'لگ قوی و بدون Pullback زیاد'},
+          {key:'leg_fvg', label:'FVG',en:true},
+          {key:'m15_cisd', label:'ساختار 15M / CISD',en:true}
+        ],
+        multi:true,
+        help:'برای اینکه مطمئن شویم حرکت واقعاً مومنتوم دارد و صرفاً برای گرفتن لیکوییدیتی نیست، هر سه نشانه باید تأیید شوند: <b>۱)</b> قدرت لگ حرکتی، <b>۲)</b> وجود FVG در لگ، <b>۳)</b> ساختار ۱۵ دقیقه و تشکیل CISD. اگر حرکت ضعیف و پر از Pullback باشد و در مسیرش نقدینگی بسازد، احتمال Reversal بعد از گرفتن POI بیشتر است.',
+        helpAlways:true },
+      { n:'3', title:'iFVG قبل از CISD/MSS', tf:'1m',
+        items:[ {key:'ifvg', label:'iFVG وجود دارد',en:true} ],
+        note:'⚠ الزامی: اگر قبل از CISD/MSS یک iFVG وجود نداشته باشد، این ستاپ کنسل است و نباید وارد معامله شد.',
+        help:'می‌توانیم روی کندل ۱۵ دقیقه‌ای که هنوز کلوز نداده، ورود را در تایم‌فریم ۱ دقیقه انجام دهیم؛ اما فقط وقتی که یک <b>iFVG</b> قبل از <b>CISD/MSS</b> شکل گرفته باشد.' },
+      { ...STEP_CONFIRMATION, n:'4' },
+      { ...STEP_BREAK_OB, n:'5' }
+    ]
+  }
+};
+const SETUP_ORDER = ['standard','breaker','aggressive'];
+function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
+
+function stepDone(step, state){
+  state = state || {};
+  if(step.skipIfKey && state[step.skipIfKey]) return true;
+  if(step.type==='conditional'){
+    if(!state[step.followKey]) return true; /* no follow-through => this step isn't required */
+    return !!state[step.condKey];
+  }
+  if(step.multi) return step.items.every(it=>!!state[it.key]);
+  return step.items.some(it=>!!state[it.key]);
+}
+function stepsDoneCount(steps, state){ return steps.filter(s=>stepDone(s,state)).length; }
+
+/* Killzone windows — defined and displayed in NEW YORK local time (DST handled automatically).
+   The NY session is one continuous window (08:30–15:30 NY): we're at the chart
+   for the whole thing and take any valid setup, not two separate sub-windows. */
+const KILLZONES = [
+  { label:'NY Session', h1:8, m1:30, h2:15, m2:30 },
+  { label:'London',     h1:2, m1:0,  h2:5,  m2:0 }
+];
+const NY_TZ = 'America/New_York';
+const KZ_OPTIONS = ['NY Session','London','Out of Killzone'];
+const SYMBOL = 'NQ';
+
+const ICONS = { chevron:'<path d="m6 9 6 6 6-6"/>' };
+
+/* ============================================================
+   STORAGE
+============================================================ */
+const DEFAULT_SETTINGS = { initialBalance:10000, commissionPerLot:5, gdClientId:'', gdAuto:false };
+const SCHEMA_VERSION = 4;
+
+/* Every string that comes from the user (or from an imported file) is escaped
+   before it is ever put into innerHTML. */
+const ESC_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>ESC_MAP[c]); }
+function safeUrl(u){ u = String(u==null?'':u).trim(); return /^https?:\/\//i.test(u) ? u : ''; }
+
+function flagStorageProblem(msg){
+  const b = document.getElementById('storageWarn');
+  if(!b) return;
+  if(msg){ document.getElementById('storageWarnText').textContent = msg; b.classList.add('on'); }
+  else b.classList.remove('on');
+}
+
+function loadTrades(){ try{ const v=localStorage.getItem('ss:trades'); return v?JSON.parse(v):[]; }catch(e){ return []; } }
+function saveTrades(list){
+  try{ localStorage.setItem('ss:trades', JSON.stringify(list)); flagStorageProblem(''); return true; }
+  catch(e){
+    flagStorageProblem('حافظهٔ مرورگر پر است یا نوشتن ممکن نیست. داده‌های این نشست ذخیره نشده‌اند — همین حالا خروجی JSON بگیر.');
+    return false;
+  }
+}
+function loadSettings(){
+  try{ const v=localStorage.getItem('ss:settings'); return Object.assign({}, DEFAULT_SETTINGS, v?JSON.parse(v):{}); }
+  catch(e){ return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings(s){
+  try{ localStorage.setItem('ss:settings', JSON.stringify(s)); flagStorageProblem(''); return true; }
+  catch(e){ flagStorageProblem('ذخیرهٔ تنظیمات ممکن نشد (حافظهٔ مرورگر پر است).'); return false; }
+}
+function loadTheme(){ try{ return localStorage.getItem('ss:theme') || 'dark'; }catch(e){ return 'dark'; } }
+function saveTheme(t){ try{ localStorage.setItem('ss:theme', t); }catch(e){} }
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.querySelectorAll('#themeSwitch button').forEach(b=> b.classList.toggle('on', b.dataset.theme===t));
+  saveTheme(t);
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(showToast._tm);
+  showToast._tm=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function uid(){ return 't'+Date.now()+Math.random().toString(36).slice(2,7); }
+function fmtUSD(v){ v=Number(v)||0; return (v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-US',{maximumFractionDigits:2}); }
+function fmtR(v){ v=Number(v)||0; if(Math.abs(v)<0.05) return '0R'; return (v>0?'+':'')+v.toFixed(1)+'R'; }
+
+/* The whole app is anchored to New York (killzones), so "today" must be the
+   New York calendar day — not the browser's UTC day. */
+function todayNY(){ const p = tzInfo(new Date(), NY_TZ); return `${p.y}-${pad2(p.mo)}-${pad2(p.d)}`; }
+function shiftISO(iso, days, months){
+  const d = new Date(iso+'T00:00:00');
+  if(days) d.setDate(d.getDate()+days);
+  if(months) d.setMonth(d.getMonth()+months);
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+
+/* ============================================================
+   STATE
+============================================================ */
+let trades = [];
+let settings = { initialBalance:10000, commissionPerLot:5 };
+let editingTradeId = null;
+let standaloneChecklistState = { standard:{}, breaker:{}, aggressive:{} };
+let formChecklistState = {};
+
+/* date -> trades[] index, rebuilt whenever the list changes. The calendar used
+   to filter the whole array once per day cell (≈730 full scans for a year). */
+let tradesByDate = new Map();
+function rebuildIndex(){
+  tradesByDate = new Map();
+  for(const t of trades){
+    const k = t.date || '';
+    if(!tradesByDate.has(k)) tradesByDate.set(k, []);
+    tradesByDate.get(k).push(t);
+  }
+}
+function commitTrades(){ rebuildIndex(); const ok = saveTrades(trades); scheduleAutoSync(); return ok; }
+function refreshAll(){ populateFilters(); renderTradesList(); renderDashboard(); renderCalendar(); }
+
+function calcCommission(t){ return (Number(t.lotSize)||0) * (Number(settings.commissionPerLot)||0); }
+function calcNet(t){ return (Number(t.grossPL)||0) - calcCommission(t); }
+function calcBalance(){ return (Number(settings.initialBalance)||0) + trades.reduce((s,t)=>s+calcNet(t),0); }
+
+/* Old-format trades (planned RR, entry/exit time, old checklist keys) are upgraded on load. */
+function migrateTrade(t){
+  const m = { ...t };
+  const v = Number(m.v) || 0;
+  m.symbol = SYMBOL;
+  if(!m.id) m.id = uid();
+  if(!m.result) m.result = Number(m.rr)>0 ? 'win' : (Number(m.rr)<0 ? 'loss' : 'be');
+  m.rr = Number(m.rr)||0;
+  /* Pre-v4 files stored every loss as exactly -1R, so only those get the
+     default. From v4 on the stored value is trusted. */
+  if(v < SCHEMA_VERSION && m.result==='loss' && m.rr >= 0) m.rr = -1;
+  if(m.result==='win')  m.rr = Math.abs(m.rr);
+  if(m.result==='loss') m.rr = -Math.abs(m.rr) || -1;
+  if(m.result==='be')   m.rr = 0;
+  m.v = SCHEMA_VERSION;
+  if(!m.createdAt) m.createdAt = Date.parse((m.date||'1970-01-01')+'T12:00:00') || 0;
+  if(m.killzone==='NY AM' || m.killzone==='NY PM') m.killzone = 'NY Session';
+  if(!KZ_OPTIONS.includes(m.killzone)) m.killzone = 'Out of Killzone';
+  if(!m.trend) m.trend = m.direction==='sell' ? 'bearish' : 'bullish';
+  if(!m.setupId || !SETUPS[m.setupId]) m.setupId = 'standard';
+  const c = m.checklist || {};
+  m.checklist = {
+    bsl: !!(c.bsl || c.bsl_sweep), ssl: !!(c.ssl || c.ssl_sweep),
+    fvg: !!(c.fvg || c.fvg_hit), ob: !!(c.ob || c.ob_hit),
+    crt: !!(c.crt || c.crt_box), box: !!c.box,
+    cisd: !!c.cisd, mss: !!c.mss,
+    ob50: !!(c.ob50 || c.stopraid || c.price_50 || c.fibo_50),
+    bb_cisd: !!(c.bb_cisd || c.bb),
+    leg_strong: !!c.leg_strong, leg_fvg: !!c.leg_fvg, m15_cisd: !!c.m15_cisd, ifvg: !!c.ifvg,
+    followThrough: !!c.followThrough,
+    sr: !!(c.sr || (c.followThrough && c.stopraid)),
+    breakob: !!(c.breakob || c.ob_broken)
+  };
+  if(m.links){ m.links = { '15': m.links['15']||'', '1': m.links['1']||'' }; }
+  else m.links = { '15':'', '1':'' };
+  delete m.rrPlanned; delete m.entryTime; delete m.exitTime; delete m.entryPoint;
+  return m;
+}
+
+/* ============================================================
+   TABS
+============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+});
+function goToView(v){ document.querySelector('.tab-btn[data-view="'+v+'"]').click(); }
+
+/* ============================================================
+   SEGMENTED BUTTONS
+============================================================ */
+function syncSegAria(el){
+  el.querySelectorAll('button').forEach(b=> b.setAttribute('aria-pressed', b.classList.contains('on')?'true':'false'));
+}
+function initSeg(id, onChange){
+  const el = document.getElementById(id);
+  el.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    el.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    syncSegAria(el);
+    if(onChange) onChange(b.dataset.val);
+  });
+}
+function getSeg(id){ const b=document.querySelector('#'+id+' button.on'); return b? b.dataset.val : ''; }
+function setSeg(id,val){
+  const el = document.getElementById(id); if(!el) return;
+  el.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.val===val));
+  syncSegAria(el);
+}
+
+/* ============================================================
+   KILLZONE BAR — New York time
+============================================================ */
+function pad2(n){ return String(n).padStart(2,'0'); }
+function tzInfo(date, timeZone){
+  const dtf = new Intl.DateTimeFormat('en-US',{ timeZone, hourCycle:'h23', year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit' });
+  const p = dtf.formatToParts(date).reduce((a,x)=>{ if(x.type!=='literal') a[x.type]=parseInt(x.value,10); return a; },{});
+  const asUTC = Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second);
+  return { offsetMin:(asUTC-date.getTime())/60000, y:p.year, mo:p.month, d:p.day, hour:p.hour, minute:p.minute, second:p.second };
+}
+function nyLocalToInstant(now, hh, mm){
+  const { offsetMin, y, mo, d } = tzInfo(now, NY_TZ);
+  return Date.UTC(y, mo-1, d, hh, mm, 0) - offsetMin*60000;
+}
+/* The pills are built once; the ticker only touches text nodes and classes.
+   Rewriting innerHTML every second killed the CSS transitions and burned
+   battery on mobile. */
+let kzPillEls = null;
+function buildKillzoneBar(){
+  const wrap = document.getElementById('kzPills');
+  wrap.innerHTML = KILLZONES.map(z=>
+    `<div class="kz-pill"><span class="kz-dot"></span><span class="kzl">${esc(z.label)}</span>`+
+    `<span class="kzt en">${pad2(z.h1)}:${pad2(z.m1)}–${pad2(z.h2)}:${pad2(z.m2)}</span>`+
+    `<span class="kzd"></span></div>`
+  ).join('') + `<div class="kz-pill" id="kzOut"><span class="kz-dot"></span><span class="kzl">Out of Killzone</span></div>`;
+  kzPillEls = [...wrap.querySelectorAll('.kz-pill')];
+}
+function renderKillzoneBar(){
+  if(!kzPillEls) buildKillzoneBar();
+  const now = new Date();
+  const ny = tzInfo(now, NY_TZ);
+  document.getElementById('kzClock').textContent = `${pad2(ny.hour)}:${pad2(ny.minute)}:${pad2(ny.second)}`;
+
+  const nowTs = now.getTime();
+  let anyActive = false;
+
+  KILLZONES.forEach((z,i)=>{
+    const startTs = nyLocalToInstant(now, z.h1, z.m1);
+    const endTs   = nyLocalToInstant(now, z.h2, z.m2);
+    const pill = kzPillEls[i];
+    let status, detail;
+    if(nowTs>=startTs && nowTs<endTs){
+      status='active'; anyActive = true;
+      const left=Math.round((endTs-nowTs)/60000);
+      detail=`${Math.floor(left/60)}h ${pad2(left%60)}m تا پایان`;
+    } else if(nowTs<startTs){
+      status='upcoming';
+      const left=Math.round((startTs-nowTs)/60000);
+      detail=`${Math.floor(left/60)}h ${pad2(left%60)}m تا شروع`;
+    } else { status='done'; detail='تمام شد'; }
+    pill.classList.toggle('active', status==='active');
+    pill.classList.toggle('upcoming', status==='upcoming');
+    const d = pill.querySelector('.kzd');
+    if(d.textContent !== detail) d.textContent = detail;
+  });
+
+  kzPillEls[kzPillEls.length-1].classList.toggle('active', !anyActive);
+}
+
+let kzTimer = null;
+function startKzTicker(){ if(!kzTimer){ renderKillzoneBar(); kzTimer = setInterval(renderKillzoneBar, 1000); } }
+function stopKzTicker(){ if(kzTimer){ clearInterval(kzTimer); kzTimer = null; } }
+document.addEventListener('visibilitychange', ()=> document.hidden ? stopKzTicker() : startKzTicker());
+startKzTicker();
+
+/* The sticky sidebar used to assume a fixed 56px bar; it wraps on mobile. */
+(function(){
+  const bar = document.querySelector('.kz-bar');
+  const apply = ()=> document.documentElement.style.setProperty('--kzh', bar.offsetHeight+'px');
+  if(window.ResizeObserver) new ResizeObserver(apply).observe(bar);
+  window.addEventListener('resize', apply);
+  apply();
+})();
+
+function currentKillzone(){
+  const now=new Date(), ts=now.getTime();
+  for(const z of KILLZONES){
+    if(ts>=nyLocalToInstant(now,z.h1,z.m1) && ts<nyLocalToInstant(now,z.h2,z.m2)) return z.label;
+  }
+  return 'Out of Killzone';
+}
+
+/* ============================================================
+   CHECKLIST RENDERING (compact)
+============================================================ */
+/* Which help panels are expanded — kept outside the trade/state objects since
+   it's a pure UI preference, not something that should be saved with a trade. */
+const openHelp = new Set();
+
+function helpBtn(step, ns){
+  if(!step.help || step.helpAlways) return '';
+  const key = ns+'.'+step.n;
+  const on = openHelp.has(key);
+  return `<button type="button" class="cl-help-btn ${on?'on':''}" data-help-toggle="${key}" aria-label="توضیح بیشتر">؟</button>`;
+}
+function helpPanel(step, ns){
+  if(!step.help) return '';
+  if(step.helpAlways) return `<div class="cl-help-panel">${step.help}</div>`;
+  const key = ns+'.'+step.n;
+  const on = openHelp.has(key);
+  return `<div class="cl-help-panel ${on?'':'hidden'}" data-help-panel="${key}">${step.help}</div>`;
+}
+
+function renderChecklistBlocks(steps, state, ns){
+  state = state || {};
+  ns = ns || 'default';
+  return steps.map(step=>{
+    let head, body, skipped = false;
+    if(step.type==='conditional'){
+      skipped = step.skipIfKey && !!state[step.skipIfKey];
+      head = `
+        <div class="cl-head">
+          <span class="cl-n en">${step.n}</span>
+          <span class="cl-t">${step.title} <i class="en">${step.tf}</i></span>
+          ${helpBtn(step, ns)}
+        </div>`;
+      if(skipped){
+        body = `<div class="chips"><span class="cl-skip">${step.skipLabel||'غیرضروری'}</span></div>`;
+      } else {
+        const ft = !!state[step.followKey];
+        const cond = !!state[step.condKey];
+        body = `
+        <div class="chips">
+          <button type="button" class="chip en ${ft?'on':''}" data-follow-key="${step.followKey}">${step.followLabel}</button>
+          <button type="button" class="chip en ${cond?'on':''}" data-cond-key="${step.condKey}" data-follow-key="${step.followKey}" ${ft?'':'disabled'}>${step.condLabel}</button>
+        </div>`;
+      }
+    } else {
+      head = `
+        <div class="cl-head">
+          <span class="cl-n en">${step.n}</span>
+          <span class="cl-t">${step.title} <i class="en">${step.tf}</i></span>
+          ${helpBtn(step, ns)}
+        </div>`;
+      body = `
+        <div class="chips">
+          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
+        </div>`;
+    }
+    let note = '';
+    if(step.note) note += `<div class="cl-note">${step.note}</div>`;
+    if(step.condNotes){
+      step.condNotes.forEach(cn=>{ if(state[cn.when]) note += `<div class="cl-note">${cn.text}</div>`; });
+    }
+    const rowClass = skipped ? 'skipped' : (stepDone(step,state) ? 'done' : '');
+    return `<div class="cl-row ${rowClass}">${head}${body}${note}${helpPanel(step, ns)}</div>`;
+  }).join('');
+}
+function wireChecklist(el, steps, state, after){
+  el.querySelectorAll('.chip[data-key]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const key = chip.dataset.key;
+      const isOn = !!state[key];
+      if(chip.dataset.multi!=='1'){
+        const step = steps.find(s=>s.n===chip.dataset.group);
+        step.items.forEach(it=> state[it.key]=false);
+      }
+      state[key] = !isOn;
+      after();
+    });
+  });
+  el.querySelectorAll('.chip[data-follow-key]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      if(chip.dataset.condKey){
+        state[chip.dataset.condKey] = !state[chip.dataset.condKey];
+      } else {
+        const fk = chip.dataset.followKey;
+        state[fk] = !state[fk];
+        if(!state[fk]){
+          const step = steps.find(s=>s.followKey===fk);
+          if(step) state[step.condKey] = false;
+        }
+      }
+      after();
+    });
+  });
+  el.querySelectorAll('[data-help-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const n = btn.dataset.helpToggle;
+      if(openHelp.has(n)) openHelp.delete(n); else openHelp.add(n);
+      after();
+    });
+  });
+}
+
+/* ============================================================
+   TRADE FORM
+============================================================ */
+let formSetupId = 'standard';
+function renderFormSetupSwitch(){
+  const el = document.getElementById('formSetupSwitch');
+  if(!el) return;
+  el.innerHTML = SETUP_ORDER.map(id=>{
+    const s = SETUPS[id];
+    return `<button type="button" class="chip accent-${s.accent} ${formSetupId===id?'on':''}" data-form-setup="${id}">${s.label}</button>`;
+  }).join('');
+  el.querySelectorAll('[data-form-setup]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.formSetup;
+      if(id===formSetupId) return;
+      formSetupId = id; formChecklistState = {}; renderFormChecklist();
+    });
+  });
+}
+function renderFormChecklist(){
+  renderFormSetupSwitch();
+  const el = document.getElementById('formChecklist');
+  const steps = getSetup(formSetupId).steps;
+  el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
+  wireChecklist(el, steps, formChecklistState, renderFormChecklist);
+}
+function buildFormChecklist(setupId, checked){ formSetupId = setupId || 'standard'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
+
+function applyResultUI(){
+  const res = getSeg('segResult');
+  const field = document.getElementById('rrField');
+  const input = document.getElementById('f-rr');
+  const lbl = document.getElementById('rrLabel');
+  if(res==='be'){
+    field.classList.add('hidden'); input.required = false; input.value = '';
+  } else {
+    field.classList.remove('hidden'); input.required = true;
+    if(res==='win'){ lbl.textContent = 'R:R به‌دست‌آمده'; input.placeholder = 'مثلاً 2.5'; }
+    else { lbl.textContent = 'اندازهٔ ضرر بر حسب R'; input.placeholder = 'مثلاً 1 یا 0.4'; }
+  }
+  const cbField = document.getElementById('couldBeField');
+  if(res==='loss'){ cbField.classList.remove('hidden'); }
+  else{ cbField.classList.add('hidden'); setSeg('segCouldBe','no'); }
+}
+function onResultChange(){
+  /* a win's 2.5R must not silently become a 2.5R loss */
+  document.getElementById('f-rr').value = getSeg('segResult')==='loss' ? '1' : '';
+  applyResultUI();
+}
+initSeg('segTrend');
+initSeg('segDirection');
+initSeg('segKillzone');
+initSeg('segResult', onResultChange);
+initSeg('segCouldBe');
+
+function updateFormCalcLine(){
+  const lot = Number(document.getElementById('f-lot').value)||0;
+  const gross = Number(document.getElementById('f-gross').value)||0;
+  const commission = lot*(Number(settings.commissionPerLot)||0);
+  document.getElementById('formCalcLine').textContent = `Commission: ${fmtUSD(commission)} · Net: ${fmtUSD(gross-commission)}`;
+}
+document.getElementById('f-lot').addEventListener('input', updateFormCalcLine);
+document.getElementById('f-gross').addEventListener('input', updateFormCalcLine);
+
+function resetForm(){
+  document.getElementById('tradeForm').reset();
+  document.getElementById('f-date').value = todayNY();
+  document.getElementById('f-symbol').value = SYMBOL;
+  setSeg('segTrend','bullish');
+  setSeg('segDirection','buy');
+  setSeg('segResult','win');
+  setSeg('segKillzone', currentKillzone());
+  setSeg('segCouldBe','no');
+  applyResultUI();
+  buildFormChecklist('standard');
+  updateFormCalcLine();
+  editingTradeId = null;
+  document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
+  document.getElementById('submitFormBtn').textContent = 'ذخیره معامله';
+}
+
+function openEditForm(t){
+  editingTradeId = t.id;
+  document.getElementById('formTitle').textContent = 'ویرایش معامله';
+  document.getElementById('submitFormBtn').textContent = 'به‌روزرسانی معامله';
+  document.getElementById('f-date').value = t.date||'';
+  setSeg('segTrend', t.trend||'bullish');
+  setSeg('segDirection', t.direction||'buy');
+  setSeg('segResult', t.result||'win');
+  setSeg('segKillzone', t.killzone||'Out of Killzone');
+  applyResultUI();
+  document.getElementById('f-rr').value = t.result==='be' ? '' : Math.abs(Number(t.rr)||0);
+  document.getElementById('f-idealrr').value = t.idealRR ?? '';
+  setSeg('segCouldBe', t.couldBeProfitOrBE ? 'yes' : 'no');
+  document.getElementById('f-lot').value = t.lotSize ?? '';
+  document.getElementById('f-gross').value = t.grossPL ?? '';
+  document.getElementById('f-entryReason').value = t.entryReason||'';
+  document.getElementById('f-exitReason').value = t.exitReason||'';
+  document.getElementById('f-notes').value = t.notes||'';
+  document.getElementById('f-link15').value = (t.links&&t.links['15'])||'';
+  document.getElementById('f-link1').value = (t.links&&t.links['1'])||'';
+  buildFormChecklist(t.setupId||'standard', t.checklist||{});
+  updateFormCalcLine();
+  const p=document.getElementById('tradeFormPanel');
+  p.classList.remove('hidden');
+  p.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+document.getElementById('newTradeBtn').addEventListener('click', ()=>{
+  resetForm();
+  const p=document.getElementById('tradeFormPanel');
+  p.classList.remove('hidden');
+  p.scrollIntoView({behavior:'smooth', block:'start'});
+});
+document.getElementById('cancelFormBtn').addEventListener('click', ()=>{
+  document.getElementById('tradeFormPanel').classList.add('hidden');
+  editingTradeId=null;
+});
+
+document.getElementById('tradeForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const result = getSeg('segResult') || 'win';
+  const rrRaw = Math.abs(Number(document.getElementById('f-rr').value)||0);
+  let rr = 0;
+  if(result==='win'){ rr = rrRaw; }
+  else if(result==='loss'){ rr = -(rrRaw || 1); }
+
+  const data = {
+    v: SCHEMA_VERSION,
+    date: document.getElementById('f-date').value,
+    symbol: SYMBOL,
+    trend: getSeg('segTrend') || 'bullish',
+    direction: getSeg('segDirection') || 'buy',
+    result, rr,
+    idealRR: Number(document.getElementById('f-idealrr').value)||0,
+    couldBeProfitOrBE: result==='loss' && getSeg('segCouldBe')==='yes',
+    killzone: getSeg('segKillzone') || 'Out of Killzone',
+    lotSize: Number(document.getElementById('f-lot').value)||0,
+    grossPL: Number(document.getElementById('f-gross').value)||0,
+    entryReason: document.getElementById('f-entryReason').value,
+    exitReason: document.getElementById('f-exitReason').value,
+    notes: document.getElementById('f-notes').value,
+    setupId: formSetupId,
+    checklist: { ...formChecklistState },
+    links: {
+      '15': document.getElementById('f-link15').value.trim(),
+      '1': document.getElementById('f-link1').value.trim()
+    }
+  };
+
+  if(editingTradeId){
+    const i = trades.findIndex(t=>t.id===editingTradeId);
+    if(i>-1) trades[i] = { ...trades[i], ...data };
+  } else {
+    trades.unshift({ id:uid(), createdAt:Date.now(), ...data });
+  }
+  const ok = commitTrades();
+  document.getElementById('tradeFormPanel').classList.add('hidden');
+  editingTradeId = null;
+  refreshAll();
+  showToast(ok ? 'معامله ذخیره شد ✓' : 'خطا در ذخیره‌سازی');
+});
+
+/* ============================================================
+   TRADES LIST
+============================================================ */
+function populateFilters(){
+  const sel = document.getElementById('filterKillzone');
+  const cur = sel.value;
+  const used = KZ_OPTIONS.filter(k=> trades.some(t=>t.killzone===k));
+  sel.innerHTML = '<option value="">همه‌ی کیل‌زون‌ها</option>' + used.map(k=>`<option value="${k}">${k}</option>`).join('');
+  sel.value = cur;
+}
+function filteredTrades(){
+  const kz = document.getElementById('filterKillzone').value;
+  const dir = document.getElementById('filterDirection').value;
+  const res = document.getElementById('filterResult').value;
+  return trades
+    .filter(t=> !kz || t.killzone===kz)
+    .filter(t=> !dir || t.direction===dir)
+    .filter(t=> !res || t.result===res)
+    .sort((a,b)=> new Date(b.date)-new Date(a.date) || (b.createdAt||0)-(a.createdAt||0));
+}
+function rClass(t){ return t.result==='win' ? 'pos' : (t.result==='loss' ? 'neg' : 'zero'); }
+
+function renderTradesList(){
+  const list = filteredTrades();
+  const wrap = document.getElementById('tradesList');
+  if(!list.length){
+    wrap.innerHTML = `<div class="empty-state"><p>معامله‌ای نیست. با «ثبت معامله جدید» شروع کن.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = list.map(t=>`
+    <div class="trade-card" id="card-${esc(t.id)}">
+      <div class="trade-row" data-id="${esc(t.id)}" role="button" tabindex="0" aria-expanded="false"
+           aria-label="${esc(t.date||'')} ${t.direction==='buy'?'Buy':'Sell'} ${t.result}">
+        <span class="date en">${esc(t.date||'')}</span>
+        <span class="pair"><span class="en">NQ</span>
+          <span class="badge ${t.direction==='buy'?'buy':'sell'}">${t.direction==='buy'?'BUY':'SELL'}</span>
+          <span class="badge trend">${t.trend==='bearish'?'Bearish 15m':'Bullish 15m'}</span>
+        </span>
+        <span class="kzcell">${esc(t.killzone||'')}</span>
+        <span><span class="badge ${esc(t.result)}">${t.result==='win'?'WIN':t.result==='loss'?'LOSS':'BE'}</span></span>
+        <span class="r ${rClass(t)} en">${fmtR(t.rr)}</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.chevron}</svg>
+      </div>
+      <div class="trade-detail"><div class="trade-detail-inner" data-loaded="0" data-id="${esc(t.id)}"></div></div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('.trade-row').forEach(row=>{
+    row.addEventListener('click', ()=> toggleTradeCard(row.dataset.id));
+    row.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleTradeCard(row.dataset.id); }
+    });
+  });
+}
+function toggleTradeCard(id){
+  const card = document.getElementById('card-'+id);
+  const isOpen = card.classList.contains('open');
+  document.querySelectorAll('.trade-card.open').forEach(c=>{
+    if(c!==card){ c.classList.remove('open'); c.querySelector('.trade-row').setAttribute('aria-expanded','false'); }
+  });
+  card.classList.toggle('open', !isOpen);
+  card.querySelector('.trade-row').setAttribute('aria-expanded', String(!isOpen));
+  if(!isOpen){
+    const inner = card.querySelector('.trade-detail-inner');
+    if(inner.dataset.loaded==='0'){ inner.dataset.loaded='1'; renderTradeDetail(inner,id); }
+  }
+}
+function renderTradeDetail(inner, id){
+  const t = trades.find(x=>x.id===id);
+  if(!t) return;
+  const commission = calcCommission(t), net = calcNet(t);
+  const linkBtn = (tf,url)=>{
+    const u = safeUrl(url);
+    return u ? `<span class="detail-link" data-url="${esc(u)}" role="button" tabindex="0">${tf} chart ↗</span>`
+             : `<span class="detail-link off">${tf} — no link</span>`;
+  };
+
+  inner.innerHTML = `
+    <div class="detail-meta-grid">
+      <div class="detail-meta-item"><div class="k en">RESULT</div><div class="v">${t.result==='win'?'Win':t.result==='loss'?'Loss':'BE'}</div></div>
+      <div class="detail-meta-item"><div class="k en">R:R</div><div class="v en" style="color:${t.result==='win'?'var(--blue)':t.result==='loss'?'var(--red)':'var(--muted)'}">${fmtR(t.rr)}</div></div>
+      <div class="detail-meta-item"><div class="k en">LOT</div><div class="v en">${t.lotSize||0}</div></div>
+      <div class="detail-meta-item"><div class="k en">GROSS</div><div class="v en">${fmtUSD(t.grossPL)}</div></div>
+      <div class="detail-meta-item"><div class="k en">COMMISSION</div><div class="v en">${fmtUSD(commission)}</div></div>
+      <div class="detail-meta-item"><div class="k en">NET</div><div class="v en" style="color:${net>=0?'var(--blue)':'var(--red)'}">${fmtUSD(net)}</div></div>
+    </div>
+    <div class="detail-cl"><span class="cl-setup-badge" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${getSetup(t.setupId).steps.map(step=>{
+      if(step.type==='conditional'){
+        const done = stepDone(step,t.checklist||{});
+        const ft = t.checklist && t.checklist[step.followKey];
+        const cond = t.checklist && t.checklist[step.condKey];
+        const label = ft ? (cond? `${step.title} (${step.condLabel} ✓)` : `${step.title} (${step.condLabel} —)`) : `${step.title} (بدون Follow Through)`;
+        return `<span class="${done?'done':''}">${done?'✓':'—'} ${step.n}. ${label}</span>`;
+      }
+      const picked = step.items.filter(it=>t.checklist && t.checklist[it.key]);
+      const done = picked.length>0;
+      const label = step.items.length>1 && picked.length ? picked.map(p=>p.label).join(' + ') : step.title;
+      return `<span class="${done?'done':''}">${done?'✓':'—'} ${step.n}. ${label}</span>`;
+    }).join('')}</div>
+    <div class="detail-links">${linkBtn('15m', t.links&&t.links['15'])}${linkBtn('1m', t.links&&t.links['1'])}</div>
+    <div class="detail-notes-grid">
+      <div class="detail-note-box"><h5>دلیل ورود</h5><p>${esc(t.entryReason) || '—'}</p></div>
+      <div class="detail-note-box"><h5>دلیل خروج</h5><p>${esc(t.exitReason) || '—'}</p></div>
+    </div>
+    <div class="detail-note-box" style="margin-bottom:11px;"><h5>نکات تکنیکال و روانشناسی</h5><p>${esc(t.notes) || '—'}</p></div>
+    <div class="detail-actions">
+      <button class="btn btn-sm" data-edit="${esc(id)}">ویرایش</button>
+      <button class="btn btn-danger btn-sm" data-del="${esc(id)}">حذف</button>
+    </div>`;
+
+  inner.querySelectorAll('.detail-link[data-url]').forEach(s=>{
+    const open = ()=> window.open(s.dataset.url,'_blank','noopener');
+    s.addEventListener('click', open);
+    s.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+  });
+  inner.querySelector('[data-edit]').addEventListener('click', e=>{ e.stopPropagation(); openEditForm(t); });
+  inner.querySelector('[data-del]').addEventListener('click', e=>{
+    e.stopPropagation();
+    if(!confirm('این معامله حذف شود؟')) return;
+    trades = trades.filter(x=>x.id!==id);
+    commitTrades();
+    refreshAll();
+    showToast('معامله حذف شد');
+  });
+}
+['filterKillzone','filterDirection','filterResult'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', renderTradesList);
+});
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+function computeStats(list){
+  const n = list.length;
+  const wins = list.filter(t=>t.result==='win').length;
+  const losses = list.filter(t=>t.result==='loss').length;
+  const bes = list.filter(t=>t.result==='be').length;
+  const totalR = list.reduce((s,t)=>s+Number(t.rr||0),0);
+  const decided = wins+losses;
+  return { n, wins, losses, bes, totalR, avgR: n? totalR/n : 0, winRate: decided? wins/decided*100 : 0 };
+}
+function maxLosingStreak(list){
+  const sorted = [...list].sort((a,b)=> new Date(a.date)-new Date(b.date) || (a.createdAt||0)-(b.createdAt||0));
+  let max=0, cur=0;
+  sorted.forEach(t=>{ if(t.result==='loss'){ cur++; max=Math.max(max,cur); } else if(t.result==='win'){ cur=0; } });
+  return max;
+}
+function renderStatGrid(){
+  const s = computeStats(trades);
+  const bal = calcBalance();
+  const netChange = bal - (Number(settings.initialBalance)||0);
+  const best = trades.length ? Math.max(...trades.map(t=>Number(t.rr)||0)) : 0;
+
+  document.getElementById('statGridPerf').innerHTML = `
+    <div class="stat-card"><div class="lbl">TOTAL R</div><div class="val ${s.totalR>=0?'pos':'neg'} en">${fmtR(s.totalR)}</div><div class="sub">${s.n} معامله</div></div>
+    <div class="stat-card"><div class="lbl">WIN RATE</div><div class="val ${s.winRate>=50?'pos':'neg'} en">${s.winRate.toFixed(0)}%</div><div class="sub">${s.wins}W · ${s.losses}L · ${s.bes}BE</div></div>
+    <div class="stat-card"><div class="lbl">AVG R</div><div class="val ${s.avgR>=0?'pos':'neg'} en">${s.avgR>=0?'+':''}${s.avgR.toFixed(2)}R</div><div class="sub">میانگین هر معامله</div></div>
+    <div class="stat-card"><div class="lbl">BEST R</div><div class="val pos en">${fmtR(best)}</div><div class="sub">باخت متوالی: ${maxLosingStreak(trades)}</div></div>
+  `;
+  document.getElementById('statGridAccount').innerHTML = `
+    <div class="stat-card"><div class="lbl">BALANCE</div><div class="val ${netChange>=0?'pos':'neg'} en">${fmtUSD(bal)}</div></div>
+    <div class="stat-card"><div class="lbl">NET CHANGE</div><div class="val ${netChange>=0?'pos':'neg'} en">${netChange>=0?'+':''}${fmtUSD(netChange)}</div></div>
+    <div class="stat-card"><div class="lbl">COMMISSION</div><div class="val en">${fmtUSD(trades.reduce((a,t)=>a+calcCommission(t),0))}</div></div>
+    <div class="stat-card"><div class="lbl">INITIAL</div><div class="val en">${fmtUSD(settings.initialBalance)}</div></div>
+  `;
+}
+/* ---------- Profit & loss panel (new, matches reference screenshots) ---------- */
+let pnlRange = 'all';
+function effResult(t){ return t.result; }
+function chronological(list){
+  return [...list].sort((a,b)=> new Date(a.date)-new Date(b.date) || (a.createdAt||0)-(b.createdAt||0));
+}
+function annotateWithBalance(list){
+  const sorted = chronological(list);
+  let bal = Number(settings.initialBalance)||0;
+  return sorted.map(t=>{
+    const net = calcNet(t);
+    const before = bal;
+    bal += net;
+    const pct = before ? (net/before*100) : (net>0?100:(net<0?-100:0));
+    return { t, net, before, after:bal, pct, eff: effResult(t) };
+  });
+}
+/* Ranges are based on the DATE OF THE TRADE, not on when the row happened to be
+   typed in. The old version filtered on createdAt, so back-filled and imported
+   trades landed in the wrong bucket (or in none at all). */
+const RANGE_LABELS = { all:'کل دوره', '7d':'۷ روز اخیر', '30d':'۳۰ روز اخیر', '3m':'۳ ماه اخیر', ytd:'از ابتدای سال' };
+function rangeStartISO(range){
+  const today = todayNY();
+  if(range==='7d')  return shiftISO(today, -6);
+  if(range==='30d') return shiftISO(today, -29);
+  if(range==='3m')  return shiftISO(today, 0, -3);
+  if(range==='ytd') return today.slice(0,4)+'-01-01';
+  return null;
+}
+function inRange(a, range){
+  if(range==='all') return true;
+  const start = rangeStartISO(range);
+  return !start || (a.t.date || '') >= start;
+}
+function computeAnnotated(){
+  return annotateWithBalance(trades).filter(a=>inRange(a, pnlRange));
+}
+function fmtCompact(v){
+  const sign = v<0?'-':'';
+  const av = Math.abs(v);
+  if(av>=1000) return sign+(av/1000).toFixed(1)+'k';
+  return sign+av.toFixed(0);
+}
+function fmtDateShort(d){
+  if(!d) return '';
+  const dt = new Date(d+'T00:00:00');
+  if(isNaN(dt)) return '';
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return dt.getDate()+' '+months[dt.getMonth()];
+}
+
+function renderPnlStats(ann){
+  const row = document.getElementById('pnlStatsRow');
+  if(!trades.length){ row.innerHTML = ''; return; }
+  const totalNet = ann.reduce((s,a)=>s+a.net,0);
+  const initial = Number(settings.initialBalance)||0;
+  /* TOTAL PNL was range-filtered while ACCOUNT BALANCE was always all-time, so
+     the two numbers contradicted each other on every range but "All". */
+  const bal = ann.length ? ann[ann.length-1].after : calcBalance();
+  const balLabel = pnlRange==='all' ? 'ACCOUNT BALANCE' : 'BALANCE AT RANGE END';
+  const balPct = initial ? ((bal-initial)/initial*100) : (bal>0?100:0);
+  const baseForPct = ann.length ? ann[0].before : initial;
+  const totalPct = baseForPct ? (totalNet/baseForPct*100) : (totalNet>0?100:0);
+
+  const wins = ann.filter(a=>a.eff==='win').length;
+  const losses = ann.filter(a=>a.eff==='loss').length;
+  const bes = ann.filter(a=>a.eff==='be').length;
+  const decided = wins+losses;
+  const winRate = decided ? wins/decided*100 : 0;
+
+  row.innerHTML = `
+    <div class="pnl-stat">
+      <span class="lbl en">TOTAL PNL</span>
+      <span class="val ${totalNet>=0?'pos':'neg'} en">${fmtUSD(totalNet)}<span class="pct">${totalNet>=0?'+':''}${totalPct.toFixed(2)}%</span></span>
+    </div>
+    <div class="pnl-stat">
+      <span class="lbl en">${balLabel}</span>
+      <span class="val ${bal>=initial?'pos':'neg'} en">${fmtUSD(bal)}<span class="pct">${bal>=initial?'+':''}${balPct.toFixed(2)}%</span></span>
+    </div>
+    <div class="pnl-stat">
+      <span class="lbl en">WIN RATE</span>
+      <span class="val en">${winRate.toFixed(2)}%</span>
+    </div>
+    <div class="pnl-stat">
+      <span class="lbl en">TOTAL TRADES</span>
+      <span class="val en">${ann.length}<small>${wins}/${losses}</small></span>
+    </div>
+    <div class="pnl-stat">
+      <span class="lbl en">BREAKEVEN TRADES</span>
+      <span class="val en">${bes}</span>
+    </div>
+  `;
+}
+
+/* Redraws on container resize so the SVG viewBox always matches real pixels.
+   The old chart used preserveAspectRatio="none", which stretched the stroke and
+   turned the data dots into ellipses, and it dropped the starting balance so
+   the curve began after the first trade instead of at it. */
+let eqData = [];
+let eqObserver = null;
+
+function renderEquityCurve(ann){
+  eqData = ann;
+  drawEquityCurve();
+  const wrap = document.getElementById('equityWrap');
+  if(window.ResizeObserver && !eqObserver){
+    eqObserver = new ResizeObserver(()=>{ clearTimeout(drawEquityCurve._t); drawEquityCurve._t = setTimeout(drawEquityCurve, 60); });
+    eqObserver.observe(wrap);
+  }
+}
+
+function drawEquityCurve(){
+  const ann = eqData;
+  const wrap = document.getElementById('equityWrap');
+  if(!ann.length){ wrap.innerHTML = `<div class="eq-empty">هنوز معامله‌ای در این بازه ثبت نشده.</div>`; return; }
+
+  const h = 200, pad = 14, padLeft = 44;
+  const w = Math.max(240, wrap.clientWidth - padLeft);
+
+  /* node 0 is the balance before the first trade in range */
+  const nodes = [{ v: ann[0].before, label: 'شروع بازه', date: ann[0].t.date, net: null, i: -1 }]
+    .concat(ann.map((a,i)=>({ v:a.after, label:null, date:a.t.date, net:a.net, r:Number(a.t.rr)||0, res:a.eff, i })));
+
+  const vals = nodes.map(n=>n.v);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const span = (maxV-minV) || Math.max(1, Math.abs(maxV)*0.02);
+  const lo = minV - span*0.08, hi = maxV + span*0.08, range = hi-lo;
+
+  const stepX = nodes.length>1 ? (w-2*pad)/(nodes.length-1) : 0;
+  const toX = i => pad + i*stepX;
+  const toY = v => h-pad - ((v-lo)/range)*(h-2*pad);
+  const coords = nodes.map((n,i)=>[toX(i), toY(n.v)]);
+
+  const line = coords.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const area = line+` L${coords[coords.length-1][0].toFixed(1)},${(h-pad).toFixed(1)} L${pad.toFixed(1)},${(h-pad).toFixed(1)} Z`;
+
+  const ticks = 4;
+  const yLabels = Array.from({length:ticks+1},(_,i)=> fmtCompact(hi-(i*(range/ticks))));
+
+  const maxLabels = Math.max(2, Math.min(6, Math.floor(w/95)));
+  const idxs = [...new Set(Array.from({length:maxLabels},(_,k)=> Math.round(k*(nodes.length-1)/(maxLabels-1))))];
+
+  const initial = Number(settings.initialBalance)||0;
+  const baseY = (initial>=lo && initial<=hi) ? toY(initial) : null;
+
+  wrap.innerHTML = `
+    <div class="eq-chart-wrap" id="eqWrapInner">
+      <div class="eq-ylabels">${yLabels.map(l=>`<span>${esc(l)}</span>`).join('')}</div>
+      <svg class="equity" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Equity curve">
+        <defs><linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--blue)" stop-opacity=".28"/>
+          <stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>
+        </linearGradient></defs>
+        <g class="eq-grid">${Array.from({length:ticks+1},(_,i)=>{ const y=pad+i*((h-2*pad)/ticks); return `<line x1="${pad}" y1="${y.toFixed(1)}" x2="${(w-pad).toFixed(1)}" y2="${y.toFixed(1)}"/>`; }).join('')}</g>
+        ${baseY!==null?`<line class="eq-zero" x1="${pad}" y1="${baseY.toFixed(1)}" x2="${(w-pad).toFixed(1)}" y2="${baseY.toFixed(1)}"/>`:''}
+        <path class="eq-area" d="${area}"/>
+        <path class="eq-line" d="${line}"/>
+        ${coords.map(p=>`<circle class="eq-dot" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${nodes.length>90?1.8:3.2}"/>`).join('')}
+      </svg>
+      <div class="eq-cursor" id="eqCursor"></div>
+      <div class="eq-marker" id="eqMarker"></div>
+      <div class="eq-tip" id="eqTip"></div>
+      <div class="eq-hit" id="eqHit"></div>
+    </div>
+    <div class="eq-xlabels" style="margin-inline-start:${padLeft}px;">
+      ${idxs.map(i=>`<span style="left:${((toX(i)/w)*100).toFixed(2)}%">${esc(fmtDateShort(nodes[i].date))}</span>`).join('')}
+    </div>
+  `;
+
+  /* hover readout */
+  const hit = document.getElementById('eqHit');
+  const cur = document.getElementById('eqCursor');
+  const mk  = document.getElementById('eqMarker');
+  const tip = document.getElementById('eqTip');
+  const inner = document.getElementById('eqWrapInner');
+
+  function pick(clientX){
+    const box = hit.getBoundingClientRect();
+    const x = clientX - box.left;
+    const i = Math.max(0, Math.min(nodes.length-1, Math.round((x-pad)/(stepX||1))));
+    const n = nodes[i];
+    const px = toX(i), py = toY(n.v);
+    cur.style.left = px+'px'; cur.classList.add('on');
+    mk.style.left = px+'px'; mk.style.top = py+'px'; mk.classList.add('on');
+    tip.style.left = Math.max(60, Math.min(w-60, px))+'px';
+    tip.style.top = py+'px';
+    tip.innerHTML = n.net===null
+      ? `<div>${esc(fmtUSD(n.v))}</div><div style="opacity:.7">شروع بازه</div>`
+      : `<div>${esc(fmtDateShort(n.date))} · ${esc(fmtR(n.r))}</div>`+
+        `<div>${n.net>=0?'+':''}${esc(fmtUSD(n.net))} → ${esc(fmtUSD(n.v))}</div>`;
+    tip.classList.add('on');
+  }
+  function clear(){ cur.classList.remove('on'); mk.classList.remove('on'); tip.classList.remove('on'); }
+
+  hit.addEventListener('mousemove', e=> pick(e.clientX));
+  hit.addEventListener('mouseleave', clear);
+  hit.addEventListener('touchstart', e=>{ if(e.touches[0]) pick(e.touches[0].clientX); }, {passive:true});
+  hit.addEventListener('touchmove',  e=>{ if(e.touches[0]) pick(e.touches[0].clientX); }, {passive:true});
+  hit.addEventListener('touchend', clear);
+  inner.style.position = 'relative';
+}
+
+function rrMiniCard(k1,k2,v1,v2,series){
+  const w=220,h=38,pad=3;
+  const s = series.length? series : [0];
+  const min=Math.min(0,...s), max=Math.max(0,...s), range=(max-min)||1;
+  const stepX = s.length>1 ? (w-2*pad)/(s.length-1) : 0;
+  const toY = v => h-pad-((v-min)/range)*(h-2*pad);
+  const pts = s.map((v,i)=>[pad+i*stepX, toY(v)]);
+  const path = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const dots = s.length<=40 ? pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6" vector-effect="non-scaling-stroke"/>`).join('') : '';
+  return `
+    <div class="rr-mini">
+      <div class="rr-head">
+        <div class="rr-item"><span class="k en">${k1}</span><span class="v en">${v1}</span></div>
+        <div class="rr-item right"><span class="k en">${k2}</span><span class="v en">${v2}</span></div>
+      </div>
+      <svg class="rr-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path class="rl" d="${path}" vector-effect="non-scaling-stroke"/>${dots}</svg>
+    </div>`;
+}
+function renderRRMini(ann){
+  const grid = document.getElementById('rrMiniGrid');
+  if(!ann.length){ grid.innerHTML=''; return; }
+  const rrs = ann.map(a=>Number(a.t.rr)||0);
+  const avgRR = rrs.reduce((s,v)=>s+v,0)/rrs.length;
+  const maxRR = Math.max(...rrs);
+
+  const idealRRs = ann.map(a=> Math.max(Number(a.t.idealRR)||0, Number(a.t.rr)||0));
+  const idealAvg = idealRRs.reduce((s,v)=>s+v,0)/idealRRs.length;
+  const idealMax = Math.max(...idealRRs);
+
+  const couldList = ann.filter(a=>a.t.couldBeProfitOrBE);
+  const couldIdealRRs = couldList.map(a=>Number(a.t.idealRR)||0);
+  const couldMaxIdeal = couldIdealRRs.length ? Math.max(...couldIdealRRs) : 0;
+
+  grid.innerHTML =
+    rrMiniCard('Average RR','Max RR', avgRR.toFixed(2), maxRR.toFixed(2), rrs) +
+    rrMiniCard('Ideal Average RR','Max Ideal RR', idealAvg.toFixed(2), idealMax.toFixed(2), idealRRs) +
+    rrMiniCard('Could have profit/BE','Max Ideal RR', couldList.length, couldMaxIdeal.toFixed(2), couldIdealRRs.length?couldIdealRRs:[0]);
+}
+
+function renderExpectancy(ann){
+  const el = document.getElementById('expGrid');
+  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
+  const winners = ann.filter(a=>a.eff==='win');
+  const losers = ann.filter(a=>a.eff==='loss');
+  const decided = winners.length+losers.length;
+  const winRateDec = decided? winners.length/decided : 0;
+  const avgWinUSD = winners.length ? winners.reduce((s,a)=>s+a.net,0)/winners.length : 0;
+  const avgLossUSD = losers.length ? losers.reduce((s,a)=>s+a.net,0)/losers.length : 0;
+  const expectancy = winRateDec*avgWinUSD + (1-winRateDec)*avgLossUSD;
+
+  const grossProfit = ann.filter(a=>a.net>0).reduce((s,a)=>s+a.net,0);
+  const grossLoss = Math.abs(ann.filter(a=>a.net<0).reduce((s,a)=>s+a.net,0));
+  const hasLosses = grossLoss > 0;
+  const profitFactor = hasLosses ? grossProfit/grossLoss : (grossProfit>0 ? Infinity : 0);
+  const pfText = !hasLosses ? (grossProfit>0 ? '∞' : '—') : profitFactor.toFixed(2);
+
+  const barTotal = (avgWinUSD + Math.abs(avgLossUSD)) || 1;
+  const gPct = Math.max(4, avgWinUSD/barTotal*100);
+  const rPct = Math.max(0, 100-gPct);
+
+  const ringFrac = hasLosses ? Math.max(0, Math.min(1, profitFactor/5)) : (grossProfit>0 ? 1 : 0);
+  const r=30, c=2*Math.PI*r, dash=c*ringFrac;
+
+  el.innerHTML = `
+    <div class="exp-card">
+      <span class="k en">EXPECTANCY</span>
+      <div class="v ${expectancy>=0?'pos':'neg'}">${fmtUSD(expectancy)}</div>
+      <div class="exp-bar-track"><span class="g" style="width:${gPct}%"></span><span class="r" style="width:${rPct}%"></span></div>
+      <div class="exp-bar-labels"><span class="g">${fmtUSD(avgWinUSD)}</span><span class="r">${fmtUSD(avgLossUSD)}</span></div>
+    </div>
+    <div class="pf-card">
+      <div>
+        <span class="k en">PROFIT FACTOR</span>
+        <div class="v">${pfText}</div>
+      </div>
+      <div class="pf-ring-wrap">
+        <svg viewBox="0 0 74 74">
+          <circle class="pf-ring-bg" cx="37" cy="37" r="${r}"/>
+          <circle class="pf-ring-fg" cx="37" cy="37" r="${r}" stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"/>
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
+function streaksInfo(list, key){
+  let cur=0; const streaks=[];
+  list.forEach(a=>{
+    if(a.eff===key){ cur++; }
+    else if(a.eff!=='be'){ if(cur>0) streaks.push(cur); cur=0; }
+  });
+  if(cur>0) streaks.push(cur);
+  const max = streaks.length? Math.max(...streaks) : 0;
+  const avg = streaks.length? streaks.reduce((s,v)=>s+v,0)/streaks.length : 0;
+  return { max, avg };
+}
+function renderWinnersLosers(ann){
+  const el = document.getElementById('wlGrid');
+  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
+  const winners = ann.filter(a=>a.eff==='win');
+  const losers = ann.filter(a=>a.eff==='loss');
+
+  const bestWinUSD = winners.length? Math.max(...winners.map(a=>a.net)) : 0;
+  const worstLossUSD = losers.length? Math.min(...losers.map(a=>a.net)) : 0;
+  const avgWinUSD = winners.length? winners.reduce((s,a)=>s+a.net,0)/winners.length : 0;
+  const avgLossUSD = losers.length? losers.reduce((s,a)=>s+a.net,0)/losers.length : 0;
+
+  const wStreak = streaksInfo(ann,'win');
+  const lStreak = streaksInfo(ann,'loss');
+
+  el.innerHTML = `
+    <div class="wl-card win">
+      <h4 class="en">Winners</h4>
+      <div class="wl-row"><span>Total winners</span><b>${winners.length}</b></div>
+      <div class="wl-row"><span>Best win</span><b>${fmtUSD(bestWinUSD)}</b></div>
+      <div class="wl-row"><span>Average win</span><b>${fmtUSD(avgWinUSD)}</b></div>
+      <div class="wl-row"><span>Max consecutive wins</span><b>${wStreak.max}</b></div>
+      <div class="wl-row"><span>Avg consecutive wins</span><b>${wStreak.avg.toFixed(2)}</b></div>
+    </div>
+    <div class="wl-card loss">
+      <h4 class="en">Losers</h4>
+      <div class="wl-row"><span>Total losers</span><b>${losers.length}</b></div>
+      <div class="wl-row"><span>Worst loss</span><b>${fmtUSD(worstLossUSD)}</b></div>
+      <div class="wl-row"><span>Average loss</span><b>${fmtUSD(avgLossUSD)}</b></div>
+      <div class="wl-row"><span>Max consecutive losses</span><b>${lStreak.max}</b></div>
+      <div class="wl-row"><span>Avg consecutive losses</span><b>${lStreak.avg.toFixed(2)}</b></div>
+    </div>
+  `;
+}
+
+const pnlRangeSegEl = document.getElementById('pnlRangeSeg');
+pnlRangeSegEl.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  pnlRangeSegEl.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  syncSegAria(pnlRangeSegEl);
+  pnlRange = b.dataset.range;
+  renderDashboard();
+});
+
+function renderDashboard(){
+  renderStatGrid();
+  const ann = computeAnnotated();
+  const hint = document.querySelector('.pnl-panel .hint');
+  if(hint) hint.textContent = RANGE_LABELS[pnlRange] || 'Over time';
+  renderPnlStats(ann);
+  renderEquityCurve(ann);
+  renderRRMini(ann);
+  renderExpectancy(ann);
+  renderWinnersLosers(ann);
+}
+
+/* ============================================================
+   PNL CALENDAR
+============================================================ */
+const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let calState = { year: Number(todayNY().slice(0,4)), month: Number(todayNY().slice(5,7))-1, mode:'usd', balanceMode:'initial', view:'month' };
+
+function dayKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function fmtPct(v){ v=Number(v)||0; return (v>=0?'+':'')+v.toFixed(2)+'%'; }
+
+function dayStats(dateStr){
+  const list = tradesByDate.get(dateStr) || [];
+  const n = list.length;
+  const wins = list.filter(t=>t.result==='win').length;
+  const losses = list.filter(t=>t.result==='loss').length;
+  const decided = wins+losses;
+  const netUSD = list.reduce((s,t)=>s+calcNet(t),0);
+  const totalR = list.reduce((s,t)=>s+Number(t.rr||0),0);
+  return { n, wins, losses, netUSD, totalR, winRate: decided ? wins/decided*100 : null };
+}
+function monthAggregateStats(y, idx){
+  const daysInM = new Date(y, idx+1, 0).getDate();
+  let n=0, netUSD=0, totalR=0, wins=0, losses=0;
+  for(let d=1; d<=daysInM; d++){
+    const s = dayStats(dayKey(y, idx, d));
+    n+=s.n; netUSD+=s.netUSD; totalR+=s.totalR; wins+=s.wins; losses+=s.losses;
+  }
+  const decided = wins+losses;
+  return { n, wins, losses, netUSD, totalR, winRate: decided ? wins/decided*100 : null };
+}
+function calDayValue(stats){
+  if(calState.mode==='r') return stats.totalR;
+  if(calState.mode==='pct'){
+    const base = calState.balanceMode==='current' ? calcBalance() : (Number(settings.initialBalance)||0);
+    return base ? (stats.netUSD/base*100) : 0;
+  }
+  return stats.netUSD;
+}
+function calFmtValue(v){
+  if(calState.mode==='r') return fmtR(v);
+  if(calState.mode==='pct') return fmtPct(v);
+  return fmtUSD(v);
+}
+function shiftMonth(delta){
+  let m = calState.month + delta, y = calState.year;
+  if(m<0){ m=11; y--; } else if(m>11){ m=0; y++; }
+  calState.month = m; calState.year = y;
+  renderCalendar();
+}
+function shiftYear(delta){ calState.year += delta; renderCalendar(); }
+function jumpToday(){ const d=todayNY(); calState.year=Number(d.slice(0,4)); calState.month=Number(d.slice(5,7))-1; calState.view='month'; setSeg('calViewSeg','month'); renderCalendar(); }
+
+function renderCalendarSummary(statsList){
+  const totalTrades = statsList.reduce((s,x)=>s+x.n,0);
+  const totalNet = statsList.reduce((s,x)=>s+x.netUSD,0);
+  const totalR = statsList.reduce((s,x)=>s+x.totalR,0);
+  const wins = statsList.reduce((s,x)=>s+x.wins,0);
+  const losses = statsList.reduce((s,x)=>s+x.losses,0);
+  const decided = wins+losses;
+  const winRate = decided ? wins/decided*100 : 0;
+  const tradingDays = statsList.filter(x=>x.n>0).length;
+  const withTrades = statsList.filter(x=>x.n>0);
+  const bestDay = withTrades.length ? Math.max(...withTrades.map(x=>x.netUSD)) : 0;
+  const worstDay = withTrades.length ? Math.min(...withTrades.map(x=>x.netUSD)) : 0;
+
+  document.getElementById('calSummary').innerHTML = `
+    <div class="stat-card"><div class="lbl">TOTAL PNL</div><div class="val ${totalNet>=0?'pos':'neg'} en">${fmtUSD(totalNet)}</div><div class="sub en">${fmtR(totalR)}</div></div>
+    <div class="stat-card"><div class="lbl">WIN RATE</div><div class="val ${winRate>=50?'pos':'neg'} en">${winRate.toFixed(0)}%</div><div class="sub en">${wins}W · ${losses}L</div></div>
+    <div class="stat-card"><div class="lbl">TRADES</div><div class="val en">${totalTrades}</div><div class="sub">${tradingDays} روز معاملاتی</div></div>
+    <div class="stat-card"><div class="lbl">BEST / WORST DAY</div><div class="val pos en" style="font-size:15px;">${fmtUSD(bestDay)}</div><div class="sub neg en" style="font-weight:600;">${fmtUSD(worstDay)}</div></div>
+  `;
+}
+
+function updateCalNavVisibility(){
+  const isYear = calState.view==='year';
+  document.getElementById('calPrevMonth').style.display = isYear ? 'none' : '';
+  document.getElementById('calNextMonth').style.display = isYear ? 'none' : '';
+  document.getElementById('calWeekdays').style.display = isYear ? 'none' : '';
+  document.getElementById('calGrid').style.display = isYear ? 'none' : '';
+  document.getElementById('calYearGrid').style.display = isYear ? '' : 'none';
+}
+
+function renderMonthGrid(){
+  const y = calState.year, m = calState.month;
+  document.getElementById('calMonthLabel').textContent = MONTHS_EN[m] + ' ' + y;
+
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const daysInPrevMonth = new Date(y, m, 0).getDate();
+  const leading = (new Date(y, m, 1).getDay() + 6) % 7; // Monday-first offset
+
+  const cells = [];
+  for(let i=leading-1;i>=0;i--){
+    const d = daysInPrevMonth - i;
+    let pm=m-1, py=y; if(pm<0){ pm=11; py--; }
+    cells.push({ dateStr: dayKey(py,pm,d), day:d, inMonth:false });
+  }
+  for(let d=1; d<=daysInMonth; d++) cells.push({ dateStr: dayKey(y,m,d), day:d, inMonth:true });
+  let next=1, nm=m+1, ny=y; if(nm>11){ nm=0; ny++; }
+  while(cells.length % 7 !== 0){ cells.push({ dateStr: dayKey(ny,nm,next), day:next, inMonth:false }); next++; }
+
+  renderCalendarSummary(cells.filter(c=>c.inMonth).map(c=>dayStats(c.dateStr)));
+
+  const todayStr = todayNY();
+
+  document.getElementById('calGrid').innerHTML = cells.map(c=>{
+    const stats = dayStats(c.dateStr);
+    const hasT = stats.n>0;
+    const val = calDayValue(stats);
+    const cls = ['cal-cell'];
+    if(!c.inMonth) cls.push('out');
+    if(hasT) cls.push('has-trades', val>=0?'pos':'neg');
+    if(c.dateStr===todayStr) cls.push('today');
+    return `<div class="${cls.join(' ')}">
+      <div class="cal-daynum en">${c.day}</div>
+      ${hasT ? `
+        <div class="cal-trades en">${stats.n} ${stats.n===1?'trade':'trades'}</div>
+        <div class="cal-pl ${val>=0?'pos':'neg'} en">${calFmtValue(val)}</div>
+        <div class="cal-wr en">${stats.winRate===null?'—':stats.winRate.toFixed(0)+'% WR'}</div>
+      ` : ``}
+    </div>`;
+  }).join('');
+}
+
+function renderYearGrid(){
+  const y = calState.year;
+  document.getElementById('calMonthLabel').textContent = String(y);
+  const monthStats = MONTHS_EN.map((name, idx)=> ({ name, idx, stats: monthAggregateStats(y, idx) }));
+  renderCalendarSummary(monthStats.map(ms=>ms.stats));
+
+  document.getElementById('calYearGrid').innerHTML = monthStats.map(ms=>{
+    const { n } = ms.stats;
+    const val = calDayValue(ms.stats);
+    const cls = ['cal-year-cell'];
+    if(n>0) cls.push(val>=0?'pos':'neg');
+    return `<div class="${cls.join(' ')}" data-month="${ms.idx}">
+      <div class="ycm en">${ms.name.slice(0,3)}</div>
+      <div class="ycv ${n>0?(val>=0?'pos':'neg'):''} en">${n>0?calFmtValue(val):'—'}</div>
+      <div class="yct en">${n} ${n===1?'trade':'trades'}</div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#calYearGrid .cal-year-cell').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      calState.month = Number(el.dataset.month);
+      calState.view = 'month';
+      setSeg('calViewSeg','month');
+      renderCalendar();
+    });
+  });
+}
+
+function renderPerfMonthGrid(){
+  const y = calState.year;
+  const base = calState.balanceMode==='current' ? calcBalance() : (Number(settings.initialBalance)||0);
+  let ytdNet = 0;
+  const cellsHtml = MONTHS_EN.map((name, idx)=>{
+    const st = monthAggregateStats(y, idx);
+    ytdNet += st.netUSD;
+    const pct = base ? (st.netUSD/base*100) : 0;
+    const valCls = st.n===0 ? 'zero' : (pct>=0?'pos':'neg');
+    return `<div class="perf-cell">
+      <div class="pm-lbl en">${name.slice(0,3).toUpperCase()}</div>
+      <div class="pm-val ${valCls} en">${st.n===0?'–':fmtPct(pct)}</div>
+    </div>`;
+  }).join('');
+  const ytdPct = base ? (ytdNet/base*100) : 0;
+  const ytdHtml = `<div class="perf-cell ytd">
+    <div class="pm-lbl en">YTD</div>
+    <div class="pm-val ${ytdPct>=0?'pos':'neg'} en">${fmtPct(ytdPct)}</div>
+  </div>`;
+  document.getElementById('perfMonthGrid').innerHTML = cellsHtml + ytdHtml;
+  document.getElementById('perfMonthHint').textContent = calState.balanceMode==='current' ? '% OF CURRENT BALANCE' : '% OF INITIAL BALANCE';
+}
+
+function renderCalendar(){
+  updateCalNavVisibility();
+  if(calState.view==='year') renderYearGrid();
+  else renderMonthGrid();
+  renderPerfMonthGrid();
+}
+
+/* ============================================================
+   STANDALONE CHECKLIST
+============================================================ */
+let currentSetupId = null;
+function renderSetupPicker(){
+  const el = document.getElementById('setupPicker');
+  el.innerHTML = SETUP_ORDER.map(id=>{
+    const s = SETUPS[id];
+    const state = standaloneChecklistState[id] || (standaloneChecklistState[id]={});
+    const done = stepsDoneCount(s.steps, state);
+    return `<button type="button" class="setup-card accent-${s.accent} ${currentSetupId===id?'active':''}" data-setup="${id}">
+        <div class="setup-card-top"><span class="setup-tag en">${s.tag}</span>${done>0?`<span class="setup-progress-pill en">${done}/${s.steps.length}</span>`:''}</div>
+        <div class="setup-card-title">${s.label}</div>
+        <div class="setup-card-desc">${s.desc}</div>
+      </button>`;
+  }).join('');
+  el.querySelectorAll('.setup-card').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ currentSetupId = btn.dataset.setup; renderStandaloneChecklist(); });
+  });
+}
+function renderStandaloneChecklist(){
+  renderSetupPicker();
+  const body = document.getElementById('checklistBody');
+  if(!currentSetupId){ body.classList.add('hidden'); return; }
+  body.classList.remove('hidden');
+  const setup = SETUPS[currentSetupId];
+  const state = standaloneChecklistState[currentSetupId] || (standaloneChecklistState[currentSetupId]={});
+  document.getElementById('clSetupTitle').textContent = setup.label;
+  const el = document.getElementById('standaloneChecklist');
+  el.innerHTML = renderChecklistBlocks(setup.steps, state, 'standalone:'+currentSetupId);
+  wireChecklist(el, setup.steps, state, renderStandaloneChecklist);
+  const done = stepsDoneCount(setup.steps, state);
+  document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
+  document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
+}
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId=null; renderStandaloneChecklist(); });
+document.getElementById('clResetBtn').addEventListener('click', ()=>{
+  if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
+  renderStandaloneChecklist();
+});
+document.getElementById('clGoJournalBtn').addEventListener('click', ()=>{
+  if(!currentSetupId) return;
+  const id = currentSetupId, state = standaloneChecklistState[id];
+  goToView('journal');
+  resetForm();
+  document.getElementById('tradeFormPanel').classList.remove('hidden');
+  buildFormChecklist(id, state);
+});
+
+/* ============================================================
+   ACCOUNT
+============================================================ */
+function populateAccountFields(){
+  document.getElementById('acc-initial').value = settings.initialBalance;
+  document.getElementById('acc-commission').value = settings.commissionPerLot;
+  document.getElementById('gd-client').value = settings.gdClientId || '';
+  document.getElementById('gd-auto').checked = !!settings.gdAuto;
+  if(settings.gdLastSync && !gdConnected()){
+    setSyncStatus('متصل نیست · آخرین همگام‌سازی: '+new Date(settings.gdLastSync).toLocaleDateString('fa-IR'));
+  }
+  renderAccountPreview();
+}
+function renderAccountPreview(){
+  const initial = Number(document.getElementById('acc-initial').value)||0;
+  const commission = Number(document.getElementById('acc-commission').value)||0;
+  const netSum = trades.reduce((s,t)=> s + ((Number(t.grossPL)||0) - (Number(t.lotSize)||0)*commission), 0);
+  const bal = initial+netSum;
+  const el = document.getElementById('acc-balance');
+  el.textContent = fmtUSD(bal);
+  el.style.color = bal>=initial ? 'var(--blue)' : 'var(--red)';
+  document.getElementById('acc-breakdown').textContent = `${fmtUSD(initial)} + ${fmtUSD(netSum)} · ${trades.length} معامله`;
+}
+document.getElementById('acc-initial').addEventListener('input', renderAccountPreview);
+document.getElementById('acc-commission').addEventListener('input', renderAccountPreview);
+document.getElementById('saveSettingsBtn').addEventListener('click', ()=>{
+  settings.initialBalance = Number(document.getElementById('acc-initial').value)||0;
+  settings.commissionPerLot = Number(document.getElementById('acc-commission').value)||0;
+  const ok = saveSettings(settings);
+  updateFormCalcLine(); renderDashboard(); renderCalendar(); scheduleAutoSync();
+  showToast(ok ? 'تنظیمات ذخیره شد ✓' : 'خطا در ذخیره‌سازی');
+});
+
+function clearAllData(){
+  if(!confirm('همه‌ی معاملات و تنظیمات حذف شود؟')) return;
+  trades=[]; settings={ ...DEFAULT_SETTINGS, gdClientId:settings.gdClientId||'' };
+  commitTrades(); saveSettings(settings);
+  populateAccountFields(); refreshAll();
+  showToast('همه‌ی داده‌ها پاک شد');
+}
+function clearTradesOnly(){
+  if(!confirm('همه‌ی معاملات حذف شود؟ تنظیمات حساب می‌ماند.')) return;
+  trades=[]; commitTrades();
+  refreshAll();
+  showToast('همه‌ی معاملات پاک شد');
+}
+
+/* ============================================================
+   MODAL
+============================================================ */
+function openModal({ title, sub, body, actions }){
+  document.getElementById('modalTitle').textContent = title||'';
+  document.getElementById('modalSub').textContent = sub||'';
+  document.getElementById('modalBody').innerHTML = body||'';
+  const act = document.getElementById('modalActions');
+  act.innerHTML = '';
+  (actions||[]).forEach(a=>{
+    const b = document.createElement('button');
+    b.className = 'btn '+(a.cls||'');
+    b.textContent = a.label;
+    b.addEventListener('click', ()=>{ if(a.onClick) a.onClick(); if(a.close!==false) closeModal(); });
+    act.appendChild(b);
+  });
+  document.getElementById('modalBack').classList.add('on');
+}
+function closeModal(){ document.getElementById('modalBack').classList.remove('on'); }
+document.getElementById('modalBack').addEventListener('click', e=>{ if(e.target.id==='modalBack') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ============================================================
+   EXPORT — JSON & CSV
+============================================================ */
+function snapshot(){
+  return { schemaVersion:SCHEMA_VERSION, settings, trades, exportedAt:new Date().toISOString() };
+}
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], { type:mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function exportData(){
+  downloadBlob(JSON.stringify(snapshot(), null, 2), `nq-journal-${todayNY()}.json`, 'application/json');
+  showToast('فایل JSON دانلود شد');
+}
+
+const CSV_COLS = [
+  ['id','id'], ['date','date'], ['symbol','symbol'], ['trend','trend'], ['direction','direction'],
+  ['result','result'], ['r','rr'], ['ideal_r','idealRR'], ['could_be_profit','couldBeProfitOrBE'],
+  ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
+  ['commission','__commission'], ['net_pl','__net'],
+  ['setup','__setup'],
+  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'],
+  ['crt','cl.crt'], ['box','cl.box'],
+  ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
+  ['bb_cisd','cl.bb_cisd'],
+  ['leg_strong','cl.leg_strong'], ['leg_fvg','cl.leg_fvg'], ['m15_cisd','cl.m15_cisd'], ['ifvg','cl.ifvg'],
+  ['follow_through','cl.followThrough'], ['stop_raid','cl.sr'], ['break_ob','cl.breakob'],
+  ['entry_reason','entryReason'], ['exit_reason','exitReason'], ['notes','notes'],
+  ['chart_15m','__l15'], ['chart_1m','__l1'], ['created_at','createdAt']
+];
+function csvCell(v){
+  if(v===null || v===undefined) return '';
+  if(typeof v === 'boolean') return v ? '1' : '0';
+  const s = String(v);
+  return /[",\n\r;]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function tradeToCsvRow(t){
+  const cl = t.checklist || {};
+  return CSV_COLS.map(([,key])=>{
+    if(key==='__commission') return calcCommission(t).toFixed(2);
+    if(key==='__net') return calcNet(t).toFixed(2);
+    if(key==='__cl'){ const st=getSetup(t.setupId); return stepsDoneCount(st.steps,cl)+'/'+st.steps.length; }
+    if(key==='__setup') return getSetup(t.setupId).label;
+    if(key==='__l15') return (t.links&&t.links['15'])||'';
+    if(key==='__l1') return (t.links&&t.links['1'])||'';
+    if(key.startsWith('cl.')) return !!cl[key.slice(3)];
+    return t[key];
+  }).map(csvCell).join(',');
+}
+function exportCsv(){
+  if(!trades.length){ showToast('معامله‌ای برای خروجی نیست'); return; }
+  const rows = chronological(trades).map(tradeToCsvRow);
+  /* "sep=," makes Excel use the comma delimiter regardless of the machine's
+     regional settings; the BOM keeps Persian text readable. */
+  const csv = 'sep=,\r\n' + CSV_COLS.map(c=>c[0]).join(',') + '\r\n' + rows.join('\r\n') + '\r\n';
+  downloadBlob('\ufeff'+csv, `nq-journal-${todayNY()}.csv`, 'text/csv;charset=utf-8');
+  showToast(`${trades.length} معامله در CSV ذخیره شد`);
+}
+
+/* ============================================================
+   IMPORT — merge or replace, with duplicate detection
+============================================================ */
+function tradeFingerprint(t){
+  return [t.date||'', t.direction||'', t.result||'', Number(t.rr)||0,
+          Number(t.grossPL)||0, Number(t.lotSize)||0, t.killzone||''].join('|');
+}
+function parseCsvTrades(text){
+  const lines = text.replace(/^\ufeff/,'').split(/\r?\n/).filter(l=>l.trim()!=='');
+  if(lines.length && /^sep=/i.test(lines[0])) lines.shift();
+  if(!lines.length) return [];
+  const split = line=>{
+    const out=[]; let cur=''; let q=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(q){ if(c==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+      else if(c==='"') q=true;
+      else if(c===','){ out.push(cur); cur=''; }
+      else cur+=c;
+    }
+    out.push(cur); return out;
+  };
+  const head = split(lines[0]).map(h=>h.trim());
+  const idx = name=> head.indexOf(name);
+  return lines.slice(1).map(line=>{
+    const c = split(line);
+    const g = name=>{ const i=idx(name); return i>-1 ? c[i] : ''; };
+    const bool = name=> g(name)==='1' || g(name).toLowerCase()==='true';
+    return {
+      id: g('id') || undefined,
+      v: SCHEMA_VERSION,
+      date: g('date'), symbol: SYMBOL,
+      trend: g('trend')||'bullish', direction: g('direction')||'buy',
+      result: g('result')||'be',
+      rr: Number(g('r'))||0, idealRR: Number(g('ideal_r'))||0,
+      couldBeProfitOrBE: bool('could_be_profit'),
+      killzone: g('killzone'),
+      lotSize: Number(g('lot'))||0, grossPL: Number(g('gross_pl'))||0,
+      entryReason: g('entry_reason'), exitReason: g('exit_reason'), notes: g('notes'),
+      checklist: {
+        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'),
+        crt:bool('crt'), box:bool('box'),
+        cisd:bool('cisd'), mss:bool('mss'),
+        ob50:bool('ob50'), bb_cisd:bool('bb_cisd'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
+        breakob:bool('break_ob')
+      },
+      links: { '15': g('chart_15m'), '1': g('chart_1m') },
+      createdAt: Number(g('created_at')) || 0
+    };
+  }).filter(t=>t.date);
+}
+
+function analyseImport(incoming){
+  const byId = new Map(trades.map(t=>[t.id,t]));
+  const byFp = new Map(trades.map(t=>[tradeFingerprint(t),t]));
+  const fresh=[], dupes=[], conflicts=[];
+  const seen = new Set();
+  incoming.forEach(t=>{
+    const fp = tradeFingerprint(t);
+    if(seen.has(fp)){ dupes.push(t); return; }
+    seen.add(fp);
+    const sameId = t.id && byId.get(t.id);
+    if(sameId){
+      if(tradeFingerprint(sameId)===fp) dupes.push(t);
+      else conflicts.push({ incoming:t, existing:sameId });
+    }
+    else if(byFp.has(fp)) dupes.push(t);
+    else fresh.push(t);
+  });
+  return { fresh, dupes, conflicts };
+}
+
+function applyImport(incoming, mode, conflicts, importedSettings){
+  if(mode==='replace'){
+    trades = incoming;
+  } else {
+    const byId = new Map(trades.map(t=>[t.id,t]));
+    if(mode==='merge-overwrite'){
+      conflicts.forEach(c=>{
+        const i = trades.findIndex(t=>t.id===c.existing.id);
+        if(i>-1) trades[i] = c.incoming;
+      });
+    }
+    const analysis = analyseImport(incoming);
+    analysis.fresh.forEach(t=>{
+      /* a re-used id from another device must not overwrite a local trade */
+      if(byId.has(t.id)) t.id = uid();
+      trades.push(t);
+    });
+  }
+  if(importedSettings) settings = Object.assign({}, settings, importedSettings, { gdClientId: settings.gdClientId || importedSettings.gdClientId || '' });
+  trades = trades.map(migrateTrade);
+  commitTrades(); saveSettings(settings);
+  populateAccountFields(); refreshAll();
+}
+
+async function importDataFromFile(file){
+  let incoming = [], importedSettings = null;
+  try{
+    const text = await file.text();
+    if(/\.csv$/i.test(file.name) || /^sep=|(^|\r?\n)id,date,/i.test(text.slice(0,200))){
+      incoming = parseCsvTrades(text);
+    } else {
+      const data = JSON.parse(text);
+      if(Array.isArray(data)) incoming = data;
+      else if(data && Array.isArray(data.trades)){ incoming = data.trades; importedSettings = data.settings || null; }
+      else throw new Error('invalid');
+    }
+    if(!incoming.length) throw new Error('empty');
+  }catch(err){ showToast('فایل نامعتبر یا خالی است'); return; }
+
+  incoming = incoming.map(migrateTrade);
+  const { fresh, dupes, conflicts } = analyseImport(incoming);
+
+  const body = `
+    <div class="kv-list">
+      <div class="kv"><span>معامله در فایل</span><b>${incoming.length}</b></div>
+      <div class="kv good"><span>جدید (اضافه می‌شود)</span><b>${fresh.length}</b></div>
+      <div class="kv"><span>تکراری (رد می‌شود)</span><b>${dupes.length}</b></div>
+      <div class="kv ${conflicts.length?'warn':''}"><span>هم‌شناسه ولی متفاوت</span><b>${conflicts.length}</b></div>
+      <div class="kv"><span>الان در ژورنال</span><b>${trades.length}</b></div>
+    </div>
+    ${conflicts.length ? '<div style="font-size:12px;color:var(--muted)">این‌ها همان شناسه را دارند ولی محتوایشان فرق دارد — معمولاً یعنی روی دستگاه دیگری ویرایش شده‌اند.</div>' : ''}
+  `;
+
+  const actions = [
+    { label:'انصراف', cls:'btn-ghost' },
+    { label:`ادغام (+${fresh.length})`, cls:'btn-primary', onClick:()=>{
+        applyImport(incoming, 'merge', conflicts, importedSettings);
+        showToast(`${fresh.length} معاملهٔ جدید اضافه شد`);
+      } }
+  ];
+  if(conflicts.length){
+    actions.push({ label:'ادغام + جایگزینی موارد متضاد', onClick:()=>{
+      applyImport(incoming, 'merge-overwrite', conflicts, importedSettings);
+      showToast('ادغام شد و موارد متضاد به‌روزرسانی شدند');
+    }});
+  }
+  actions.push({ label:'جایگزینی کامل', cls:'btn-danger', onClick:()=>{
+    if(!confirm('همهٔ معاملات فعلی حذف و با فایل جایگزین می‌شوند. ادامه؟')) return;
+    applyImport(incoming, 'replace', conflicts, importedSettings);
+    showToast('داده‌ها جایگزین شد');
+  }});
+
+  openModal({ title:'ایمپورت داده', sub:file.name, body, actions });
+}
+
+/* ============================================================
+   MONTHLY PDF REPORT (via the browser print dialog)
+============================================================ */
+function monthTrades(y, mIdx){
+  const prefix = `${y}-${pad2(mIdx+1)}-`;
+  return chronological(trades.filter(t=>(t.date||'').startsWith(prefix)));
+}
+function equitySvgForPrint(list, startBalance){
+  const w=680, h=220, pad=26;
+  let bal = startBalance;
+  const nodes = [startBalance];
+  list.forEach(t=>{ bal += calcNet(t); nodes.push(bal); });
+  const minV=Math.min(...nodes), maxV=Math.max(...nodes);
+  const span=(maxV-minV)|| Math.max(1,Math.abs(maxV)*0.02);
+  const lo=minV-span*0.1, hi=maxV+span*0.1, range=hi-lo;
+  const stepX = nodes.length>1 ? (w-2*pad)/(nodes.length-1) : 0;
+  const toY = v => h-pad-((v-lo)/range)*(h-2*pad);
+  const pts = nodes.map((v,i)=>[pad+i*stepX, toY(v)]);
+  const line = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const area = line+` L${pts[pts.length-1][0].toFixed(1)},${h-pad} L${pad},${h-pad} Z`;
+  const zeroY = (startBalance>=lo && startBalance<=hi) ? toY(startBalance) : null;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1f5fd0" stop-opacity=".22"/><stop offset="100%" stop-color="#1f5fd0" stop-opacity="0"/>
+    </linearGradient></defs>
+    <rect x="0" y="0" width="${w}" height="${h}" fill="none"/>
+    ${[0,1,2,3,4].map(i=>{const y=pad+i*((h-2*pad)/4); return `<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="#dde3ec" stroke-dasharray="3 5"/>`;}).join('')}
+    ${zeroY!==null?`<line x1="${pad}" y1="${zeroY.toFixed(1)}" x2="${w-pad}" y2="${zeroY.toFixed(1)}" stroke="#9aa5b5" stroke-dasharray="4 4"/>`:''}
+    <path d="${area}" fill="url(#g)"/>
+    <path d="${line}" fill="none" stroke="#1f5fd0" stroke-width="2"/>
+    <text x="${pad}" y="16" font-size="11" fill="#7c8697" font-family="monospace">${fmtCompact(hi)}</text>
+    <text x="${pad}" y="${h-6}" font-size="11" fill="#7c8697" font-family="monospace">${fmtCompact(lo)}</text>
+  </svg>`;
+}
+function buildMonthlyReport(y, mIdx){
+  const list = monthTrades(y, mIdx);
+  if(!list.length){ showToast('این ماه معامله‌ای ندارد'); return; }
+
+  /* balance as it stood the moment the month began */
+  const prefix = `${y}-${pad2(mIdx+1)}`;
+  const before = chronological(trades).filter(t=>(t.date||'') < prefix+'-01');
+  const startBalance = (Number(settings.initialBalance)||0) + before.reduce((s,t)=>s+calcNet(t),0);
+
+  const net = list.reduce((s,t)=>s+calcNet(t),0);
+  const gross = list.reduce((s,t)=>s+(Number(t.grossPL)||0),0);
+  const comm = list.reduce((s,t)=>s+calcCommission(t),0);
+  const wins = list.filter(t=>t.result==='win');
+  const losses = list.filter(t=>t.result==='loss');
+  const bes = list.filter(t=>t.result==='be');
+  const decided = wins.length+losses.length;
+  const winRate = decided ? wins.length/decided*100 : 0;
+  const totalR = list.reduce((s,t)=>s+(Number(t.rr)||0),0);
+  const avgWin = wins.length ? wins.reduce((s,t)=>s+calcNet(t),0)/wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((s,t)=>s+calcNet(t),0)/losses.length : 0;
+  const gp = list.filter(t=>calcNet(t)>0).reduce((s,t)=>s+calcNet(t),0);
+  const gl = Math.abs(list.filter(t=>calcNet(t)<0).reduce((s,t)=>s+calcNet(t),0));
+  const pf = gl ? (gp/gl).toFixed(2) : (gp>0?'∞':'—');
+  const expectancy = decided ? (wins.length/decided)*avgWin + (losses.length/decided)*avgLoss : 0;
+
+  /* max drawdown within the month */
+  let peak = startBalance, bal = startBalance, maxDD = 0;
+  list.forEach(t=>{ bal += calcNet(t); peak = Math.max(peak, bal); maxDD = Math.min(maxDD, bal-peak); });
+
+  const kzRows = KZ_OPTIONS.map(k=>{
+    const l = list.filter(t=>t.killzone===k);
+    if(!l.length) return '';
+    const w2 = l.filter(t=>t.result==='win').length, l2 = l.filter(t=>t.result==='loss').length;
+    const d2 = w2+l2;
+    return `<tr><td>${esc(k)}</td><td>${l.length}</td><td>${d2?(w2/d2*100).toFixed(0):'—'}%</td>
+      <td>${fmtR(l.reduce((s,t)=>s+(Number(t.rr)||0),0))}</td>
+      <td class="${l.reduce((s,t)=>s+calcNet(t),0)>=0?'p':'n'}">${fmtUSD(l.reduce((s,t)=>s+calcNet(t),0))}</td></tr>`;
+  }).join('');
+
+  const rows = list.map(t=>`<tr>
+      <td class="mono">${esc(t.date)}</td>
+      <td>${t.direction==='buy'?'Buy':'Sell'}</td>
+      <td>${esc(t.killzone||'')}</td>
+      <td>${t.result==='win'?'Win':t.result==='loss'?'Loss':'BE'}</td>
+      <td class="mono">${fmtR(t.rr)}</td>
+      <td class="mono">${t.lotSize||0}</td>
+      <td class="mono ${calcNet(t)>=0?'p':'n'}">${fmtUSD(calcNet(t))}</td>
+      <td class="note">${esc((t.notes||t.exitReason||'').slice(0,90))}</td>
+    </tr>`).join('');
+
+  const stat = (k,v,cls)=>`<div class="s"><span>${k}</span><b class="${cls||''}">${v}</b></div>`;
+
+  const html = `<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8">
+<title>NQ Journal — ${MONTHS_EN[mIdx]} ${y}</title>
+<style>
+  @page{ size:A4; margin:14mm; }
+  *{box-sizing:border-box;}
+  body{ font-family:'Vazirmatn',Tahoma,sans-serif; color:#141a24; margin:0; font-size:12px; line-height:1.7; }
+  h1{ font-size:20px; margin:0; letter-spacing:-.4px; }
+  .sub{ color:#5d6879; font-size:11px; margin-bottom:14px; }
+  .head{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #141a24; padding-bottom:8px; margin-bottom:14px; }
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
+  .s{ border:1px solid #dde3ec; border-radius:8px; padding:8px 10px; }
+  .s span{ display:block; font-size:9px; letter-spacing:.6px; color:#7c8697; text-transform:uppercase; font-family:monospace; }
+  .s b{ font-size:15px; font-family:monospace; direction:ltr; display:block; margin-top:2px; }
+  .p{ color:#0a7d4b; } .n{ color:#c0392b; }
+  h2{ font-size:13px; margin:16px 0 7px; }
+  table{ width:100%; border-collapse:collapse; font-size:10.5px; }
+  th{ background:#f2f5f9; text-align:right; padding:5px 6px; border-bottom:1px solid #dde3ec; font-size:9.5px; letter-spacing:.4px; }
+  td{ padding:4px 6px; border-bottom:1px solid #eef1f6; }
+  .mono{ font-family:monospace; direction:ltr; }
+  .note{ color:#5d6879; }
+  tbody tr{ page-break-inside:avoid; }
+  .chart{ border:1px solid #dde3ec; border-radius:10px; padding:8px; margin-bottom:6px; }
+  .foot{ margin-top:18px; font-size:9.5px; color:#8b95a6; border-top:1px solid #dde3ec; padding-top:7px; }
+  @media print{ .noprint{ display:none; } }
+  .noprint{ position:fixed; top:10px; left:10px; background:#1f5fd0; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; font-family:inherit; }
+</style></head><body>
+<button class="noprint" onclick="window.print()">چاپ / ذخیره به‌صورت PDF</button>
+<div class="head">
+  <div><h1>NQ Journal — ${MONTHS_EN[mIdx]} ${y}</h1>
+  <div class="sub">S&S · NY 🗽 (SM) · ساخته‌شده در ${esc(todayNY())}</div></div>
+  <div class="mono" style="font-size:22px;font-weight:700" class="${net>=0?'p':'n'}">${fmtUSD(net)}</div>
+</div>
+<div class="stats">
+  ${stat('NET PNL', fmtUSD(net), net>=0?'p':'n')}
+  ${stat('TOTAL R', fmtR(totalR), totalR>=0?'p':'n')}
+  ${stat('WIN RATE', winRate.toFixed(1)+'%')}
+  ${stat('TRADES', list.length+' ('+wins.length+'W/'+losses.length+'L/'+bes.length+'BE)')}
+  ${stat('PROFIT FACTOR', pf)}
+  ${stat('EXPECTANCY', fmtUSD(expectancy), expectancy>=0?'p':'n')}
+  ${stat('AVG WIN / LOSS', fmtUSD(avgWin)+' / '+fmtUSD(avgLoss))}
+  ${stat('MAX DRAWDOWN', fmtUSD(maxDD), 'n')}
+  ${stat('GROSS', fmtUSD(gross))}
+  ${stat('COMMISSION', fmtUSD(comm), 'n')}
+  ${stat('START BALANCE', fmtUSD(startBalance))}
+  ${stat('END BALANCE', fmtUSD(startBalance+net), (startBalance+net)>=startBalance?'p':'n')}
+</div>
+<h2>منحنی موجودی</h2>
+<div class="chart">${equitySvgForPrint(list, startBalance)}</div>
+${kzRows ? `<h2>عملکرد بر حسب کیل‌زون</h2>
+<table><thead><tr><th>کیل‌زون</th><th>تعداد</th><th>نرخ برد</th><th>R</th><th>خالص</th></tr></thead><tbody>${kzRows}</tbody></table>` : ''}
+<h2>معاملات</h2>
+<table><thead><tr><th>تاریخ</th><th>جهت</th><th>کیل‌زون</th><th>نتیجه</th><th>R</th><th>لات</th><th>خالص</th><th>یادداشت</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="foot">این گزارش از دادهٔ محلی مرورگر ساخته شده است. برای ذخیره به‌صورت PDF، در پنجرهٔ چاپ گزینهٔ «Save as PDF» را انتخاب کن.</div>
+<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if(!win){ showToast('پنجرهٔ گزارش مسدود شد — pop-up را مجاز کن'); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+}
+
+function openReportPicker(){
+  const years = [...new Set(trades.map(t=>(t.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  if(!years.length){ showToast('هنوز معامله‌ای ثبت نشده'); return; }
+  const y0 = years.includes(String(calState.year)) ? String(calState.year) : years[0];
+  const body = `
+    <div class="form-grid-2">
+      <div class="field"><label for="rp-year">سال</label>
+        <select id="rp-year">${years.map(y=>`<option ${y===y0?'selected':''}>${esc(y)}</option>`).join('')}</select></div>
+      <div class="field"><label for="rp-month">ماه</label>
+        <select id="rp-month">${MONTHS_EN.map((m,i)=>`<option value="${i}" ${i===calState.month?'selected':''}>${m}</option>`).join('')}</select></div>
+    </div>`;
+  openModal({
+    title:'گزارش PDF ماهانه',
+    sub:'ماه را انتخاب کن؛ گزارش در یک تب جدید باز می‌شود.',
+    body,
+    actions:[
+      { label:'انصراف', cls:'btn-ghost' },
+      { label:'ساخت گزارش', cls:'btn-primary', onClick:()=>{
+          const y = Number(document.getElementById('rp-year').value);
+          const m = Number(document.getElementById('rp-month').value);
+          setTimeout(()=>buildMonthlyReport(y,m), 60);
+        } }
+    ]
+  });
+}
+
+/* ============================================================
+   GOOGLE DRIVE SYNC (appDataFolder)
+============================================================ */
+const GD = {
+  token:null, expiry:0, fileId:null, client:null, gisLoaded:false,
+  SCOPE:'https://www.googleapis.com/auth/drive.appdata',
+  FILENAME:'nq-journal.json'
+};
+function setSyncStatus(text, state){
+  const dot = document.getElementById('syncDot');
+  document.getElementById('syncStatus').textContent = text;
+  dot.classList.toggle('on', state==='ok');
+  dot.classList.toggle('err', state==='err');
+}
+function gdConnected(){ return !!GD.token && Date.now() < GD.expiry; }
+
+function loadGis(){
+  if(GD.gisLoaded) return Promise.resolve();
+  return new Promise((res, rej)=>{
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.onload = ()=>{ GD.gisLoaded = true; res(); };
+    s.onerror = ()=> rej(new Error('gis'));
+    document.head.appendChild(s);
+  });
+}
+async function gdConnect(interactive){
+  const cid = (document.getElementById('gd-client').value || settings.gdClientId || '').trim();
+  if(!cid){ setSyncStatus('اول Client ID را وارد کن', 'err'); return false; }
+  if(location.protocol === 'file:'){ setSyncStatus('روی file:// کار نمی‌کند — صفحه را میزبانی کن', 'err'); return false; }
+  settings.gdClientId = cid; saveSettings(settings);
+  try{ await loadGis(); }
+  catch(e){ setSyncStatus('بارگذاری کتابخانهٔ گوگل ناموفق بود', 'err'); return false; }
+
+  return new Promise(resolve=>{
+    try{
+      GD.client = google.accounts.oauth2.initTokenClient({
+        client_id: cid,
+        scope: GD.SCOPE,
+        callback: (resp)=>{
+          if(resp && resp.access_token){
+            GD.token = resp.access_token;
+            GD.expiry = Date.now() + (Number(resp.expires_in||3600)-60)*1000;
+            setSyncStatus('متصل به Drive', 'ok');
+            resolve(true);
+          } else { setSyncStatus('اجازهٔ دسترسی داده نشد', 'err'); resolve(false); }
+        },
+        error_callback: ()=>{ setSyncStatus('اتصال لغو شد', 'err'); resolve(false); }
+      });
+      GD.client.requestAccessToken({ prompt: interactive ? '' : 'none' });
+    }catch(e){ setSyncStatus('Client ID نامعتبر است', 'err'); resolve(false); }
+  });
+}
+async function gdEnsureToken(){
+  if(gdConnected()) return true;
+  return await gdConnect(false) || await gdConnect(true);
+}
+async function gdApi(url, opts){
+  const r = await fetch(url, Object.assign({}, opts, {
+    headers: Object.assign({ Authorization:'Bearer '+GD.token }, (opts&&opts.headers)||{})
+  }));
+  if(r.status===401){ GD.token=null; throw new Error('unauthorized'); }
+  if(!r.ok) throw new Error('http '+r.status);
+  return r;
+}
+async function gdFindFile(){
+  const q = encodeURIComponent(`name='${GD.FILENAME}'`);
+  const r = await gdApi(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,modifiedTime)`);
+  const j = await r.json();
+  if(j.files && j.files.length){ GD.fileId = j.files[0].id; return j.files[0]; }
+  GD.fileId = null; return null;
+}
+async function gdPush(silent){
+  if(!await gdEnsureToken()) return;
+  try{
+    setSyncStatus('در حال آپلود…');
+    await gdFindFile();
+    const payload = JSON.stringify(Object.assign(snapshot(), { syncedAt:Date.now() }));
+    const boundary = 'nqj'+Math.random().toString(36).slice(2);
+    const meta = GD.fileId ? { name:GD.FILENAME } : { name:GD.FILENAME, parents:['appDataFolder'] };
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n`+
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
+    const url = GD.fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${GD.fileId}?uploadType=multipart`
+      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+    await gdApi(url, { method: GD.fileId ? 'PATCH' : 'POST',
+      headers:{ 'Content-Type':'multipart/related; boundary='+boundary }, body });
+    settings.gdLastSync = Date.now(); saveSettings(settings);
+    setSyncStatus('آخرین آپلود: همین حالا', 'ok');
+    if(!silent) showToast('در Drive ذخیره شد ✓');
+  }catch(e){
+    setSyncStatus('آپلود ناموفق بود', 'err');
+    if(!silent) showToast('آپلود به Drive ناموفق بود');
+  }
+}
+async function gdPull(){
+  if(!await gdEnsureToken()) return;
+  try{
+    setSyncStatus('در حال دریافت…');
+    const f = await gdFindFile();
+    if(!f){ setSyncStatus('فایلی در Drive نیست', 'err'); showToast('هنوز چیزی در Drive ذخیره نشده'); return; }
+    const r = await gdApi(`https://www.googleapis.com/drive/v3/files/${GD.fileId}?alt=media`);
+    const data = await r.json();
+    if(!data || !Array.isArray(data.trades)) throw new Error('bad');
+
+    const incoming = data.trades.map(migrateTrade);
+    const { fresh, dupes, conflicts } = analyseImport(incoming);
+    setSyncStatus('متصل به Drive', 'ok');
+    openModal({
+      title:'دریافت از Google Drive',
+      sub:`آخرین ذخیره: ${data.exportedAt ? new Date(data.exportedAt).toLocaleString('fa-IR') : '—'}`,
+      body:`<div class="kv-list">
+        <div class="kv"><span>معامله در Drive</span><b>${incoming.length}</b></div>
+        <div class="kv good"><span>جدید برای این دستگاه</span><b>${fresh.length}</b></div>
+        <div class="kv"><span>تکراری</span><b>${dupes.length}</b></div>
+        <div class="kv ${conflicts.length?'warn':''}"><span>متضاد</span><b>${conflicts.length}</b></div>
+      </div>`,
+      actions:[
+        { label:'انصراف', cls:'btn-ghost' },
+        { label:`ادغام (+${fresh.length})`, cls:'btn-primary', onClick:()=>{
+            applyImport(incoming, 'merge', conflicts, data.settings);
+            showToast('از Drive ادغام شد ✓');
+          } },
+        { label:'جایگزینی کامل', cls:'btn-danger', onClick:()=>{
+            if(!confirm('دادهٔ محلی با نسخهٔ Drive جایگزین شود؟')) return;
+            applyImport(incoming, 'replace', conflicts, data.settings);
+            showToast('از Drive بازیابی شد ✓');
+          } }
+      ]
+    });
+  }catch(e){
+    setSyncStatus('دریافت ناموفق بود', 'err');
+    showToast('دریافت از Drive ناموفق بود');
+  }
+}
+function gdDisconnect(){
+  if(GD.token && window.google && google.accounts && google.accounts.oauth2){
+    try{ google.accounts.oauth2.revoke(GD.token, ()=>{}); }catch(e){}
+  }
+  GD.token = null; GD.expiry = 0; GD.fileId = null;
+  setSyncStatus('متصل نیست');
+  showToast('اتصال Drive قطع شد');
+}
+let autoSyncTimer = null;
+function scheduleAutoSync(){
+  if(!settings.gdAuto || !gdConnected()) return;
+  clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(()=>gdPush(true), 4000);
+}
+
+/* ---------- wiring ---------- */
+document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
+document.getElementById('exportBtn').addEventListener('click', exportData);
+document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+document.getElementById('reportBtn').addEventListener('click', openReportPicker);
+document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async e=>{ const f=e.target.files[0]; if(f) await importDataFromFile(f); e.target.value=''; });
+document.getElementById('clearAllBtnJournal').addEventListener('click', clearTradesOnly);
+document.getElementById('exportBtnJournal').addEventListener('click', exportData);
+document.getElementById('exportCsvBtnJournal').addEventListener('click', exportCsv);
+document.getElementById('importBtnJournal').addEventListener('click', ()=> document.getElementById('importFileJournal').click());
+document.getElementById('importFileJournal').addEventListener('change', async e=>{ const f=e.target.files[0]; if(f) await importDataFromFile(f); e.target.value=''; });
+document.getElementById('calReportBtn').addEventListener('click', ()=> buildMonthlyReport(calState.year, calState.month));
+
+document.getElementById('gdConnectBtn').addEventListener('click', ()=> gdConnect(true));
+document.getElementById('gdPushBtn').addEventListener('click', ()=> gdPush(false));
+document.getElementById('gdPullBtn').addEventListener('click', gdPull);
+document.getElementById('gdDisconnectBtn').addEventListener('click', gdDisconnect);
+document.getElementById('gd-auto').addEventListener('change', e=>{
+  settings.gdAuto = e.target.checked; saveSettings(settings);
+  showToast(settings.gdAuto ? 'همگام‌سازی خودکار روشن شد' : 'همگام‌سازی خودکار خاموش شد');
+});
+document.getElementById('gd-client').addEventListener('change', e=>{
+  settings.gdClientId = e.target.value.trim(); saveSettings(settings);
+});
+
+document.getElementById('calPrevMonth').addEventListener('click', ()=>shiftMonth(-1));
+document.getElementById('calNextMonth').addEventListener('click', ()=>shiftMonth(1));
+document.getElementById('calPrevYear').addEventListener('click', ()=>shiftYear(-1));
+document.getElementById('calNextYear').addEventListener('click', ()=>shiftYear(1));
+document.getElementById('calTodayBtn').addEventListener('click', jumpToday);
+initSeg('calViewSeg', val=>{ calState.view=val; renderCalendar(); });
+initSeg('calModeSeg', val=>{ calState.mode=val; renderCalendar(); });
+initSeg('calBalanceSeg', val=>{ calState.balanceMode=val; renderCalendar(); });
+
+document.getElementById('themeSwitch').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  applyTheme(b.dataset.theme);
+});
+
+/* ============================================================
+   KEYBOARD SHORTCUTS (desktop)
+============================================================ */
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA' || e.target.tagName==='SELECT') return;
+  if(document.getElementById('modalBack').classList.contains('on')) return;
+  const views = ['dashboard','journal','calendar','checklist','guide','account'];
+  if(e.key>='1' && e.key<='6'){ e.preventDefault(); goToView(views[Number(e.key)-1]); return; }
+  if(e.key==='n' && !e.metaKey && !e.ctrlKey){
+    e.preventDefault(); goToView('journal');
+    setTimeout(()=>document.getElementById('newTradeBtn').click(), 50); return;
+  }
+  if(e.key==='Escape'){
+    document.getElementById('tradeFormPanel').classList.add('hidden');
+    editingTradeId = null;
+  }
+});
+function init(){
+  applyTheme(loadTheme());
+  settings = loadSettings();
+  trades = loadTrades().map(migrateTrade);
+  rebuildIndex();
+  commitTrades();          /* re-save migrated data and build index */
+  resetForm();
+  renderStandaloneChecklist();
+  populateAccountFields();
+  populateFilters();
+  renderDashboard(); renderCalendar();
+  renderTradesList();
+  gdAutoReconnect();
+}
+async function gdAutoReconnect(){
+  if(!settings.gdClientId) return;
+  if(location.protocol === 'file:') return;
+  try{
+    const ok = await gdConnect(false);
+    if(ok){ showToast('اتصال به Drive برقرار شد'); }
+  }catch(e){ /* silent: user can still connect manually */ }
+}
+init();
