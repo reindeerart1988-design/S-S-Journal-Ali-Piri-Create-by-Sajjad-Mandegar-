@@ -1909,8 +1909,12 @@ let supaSyncTimer = null;
 
 function scheduleAutoSync(){
   if(!currentUser) return;
+  /* Fire right away (no debounce): the app only calls this after discrete
+     actions (submit/edit/delete a trade, save settings), not on every
+     keystroke, so there's no flood risk — and immediate saving means a
+     quick refresh right after saving a trade can never lose it. */
   clearTimeout(supaSyncTimer);
-  supaSyncTimer = setTimeout(()=>syncToSupabase(true), 1200);
+  syncToSupabase(true);
 }
 
 async function syncToSupabase(silent){
