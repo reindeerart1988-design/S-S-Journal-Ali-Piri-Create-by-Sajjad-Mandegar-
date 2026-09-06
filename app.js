@@ -12,6 +12,81 @@ function showAuthMsg(msg){
     if(el) el.textContent = msg || '';
 }
 
+function getInitials(user){
+    if(!user) return '?';
+    const name = (user.user_metadata && user.user_metadata.full_name) || '';
+    if(name.trim()){
+        const parts = name.trim().split(/\s+/);
+        return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+    }
+    return (user.email || '?')[0].toUpperCase();
+}
+
+/* Fills the small profile chip (top bar) and the profile panel (Account tab)
+   with the current user's name/avatar — falls back to initials if no photo. */
+function renderUserProfile(){
+    if(!currentUser) return;
+    const meta = currentUser.user_metadata || {};
+    const name = meta.full_name || '';
+    const avatarUrl = meta.avatar_url || '';
+    const initials = getInitials(currentUser);
+
+    const chipAvatar = document.getElementById('profileAvatar');
+    const chipName = document.getElementById('profileName');
+    if(chipAvatar) chipAvatar.innerHTML = avatarUrl ? `<img src="${avatarUrl}" alt="">` : initials;
+    if(chipName) chipName.textContent = name || currentUser.email || '';
+
+    const editAvatar = document.getElementById('profileEditAvatar');
+    if(editAvatar) editAvatar.innerHTML = avatarUrl ? `<img src="${avatarUrl}" alt="">` : initials;
+
+    const nameInput = document.getElementById('profile-name-input');
+    if(nameInput) nameInput.value = name;
+
+    const emailDisplay = document.getElementById('profile-email-display');
+    if(emailDisplay) emailDisplay.textContent = 'ایمیل: ' + (currentUser.email || '');
+}
+
+/* Save the display name typed into the Account tab */
+async function saveProfile(){
+    const input = document.getElementById('profile-name-input');
+    const full_name = (input && input.value || '').trim();
+    try{
+        const { data, error } = await supabaseClient.auth.updateUser({ data: { full_name } });
+        if(error) throw error;
+        currentUser = data.user;
+        renderUserProfile();
+        showToast('پروفایل ذخیره شد ✓');
+    }catch(e){
+        console.error('Profile save failed', e);
+        showToast('ذخیرهٔ پروفایل ناموفق بود');
+    }
+}
+
+/* Upload a new avatar photo to the "avatars" Storage bucket and save its
+   public URL on the user's profile. Requires a public "avatars" bucket. */
+async function uploadAvatar(file){
+    if(!currentUser || !file) return;
+    try{
+        showToast('در حال آپلود عکس…');
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `${currentUser.id}/avatar.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+            .from('avatars')
+            .upload(path, file, { upsert:true, cacheControl:'3600' });
+        if(upErr) throw upErr;
+        const { data: pub } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+        const avatar_url = pub.publicUrl + '?t=' + Date.now();
+        const { data, error } = await supabaseClient.auth.updateUser({ data: { avatar_url } });
+        if(error) throw error;
+        currentUser = data.user;
+        renderUserProfile();
+        showToast('عکس پروفایل به‌روزرسانی شد ✓');
+    }catch(e){
+        console.error('Avatar upload failed', e);
+        showToast('آپلود عکس ناموفق بود — باکت "avatars" را در Supabase ساخته‌ای؟');
+    }
+}
+
 // نمایش برنامه بعد از ورود موفق / پنهان‌کردن فرم ورود
 function showApp(user){
     currentUser = user;
@@ -19,6 +94,7 @@ function showApp(user){
     const shell = document.getElementById('app-shell');
     if (modal) modal.style.display = 'none';
     if (shell) shell.style.display = '';
+    renderUserProfile();
 }
 
 // نمایش فرم ورود / پنهان‌کردن برنامه (کاربر لاگین نیست)
@@ -44,16 +120,33 @@ window.addEventListener('DOMContentLoaded', async () => {
         console.error('Supabase auth check failed', e);
         showAuthForm();
     }
+
+    const profileChip = document.getElementById('profileChip');
+    if(profileChip) profileChip.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('account'); });
+
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
+    if(saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfile);
+
+    const avatarInput = document.getElementById('avatarInput');
+    if(avatarInput) avatarInput.addEventListener('change', (e)=>{
+        const f = e.target.files[0];
+        if(f) uploadAvatar(f);
+        e.target.value = '';
+    });
 });
 
 // تابع ثبت‌نام کاربر جدید
 async function handleSignUp() {
+    const name = (document.getElementById('auth-name').value || '').trim();
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
 
     if(!email || !password) return showAuthMsg("لطفاً ایمیل و رمز عبور را وارد کنید.");
 
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    const { data, error } = await supabaseClient.auth.signUp({
+        email, password,
+        options: { data: { full_name: name } }
+    });
     if (error) showAuthMsg("خطا در ثبت‌نام: " + error.message);
     else showAuthMsg("ثبت‌نام موفقیت‌آمیز بود! اکنون می‌توانید وارد شوید.");
 }
