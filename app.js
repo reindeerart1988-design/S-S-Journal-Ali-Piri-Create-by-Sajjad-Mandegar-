@@ -1,3 +1,59 @@
+// ==========================================
+// تنظیمات اتصال به Supabase
+// ==========================================
+const SUPABASE_URL = "https://iazjcnpnybywhorfigvq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QLI3Adqlm-tk__4sUD8I1w_7GzJ8NPT";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+
+// بررسی وضعیت ورود به محض لود شدن صفحه
+window.addEventListener('DOMContentLoaded', async () => {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        currentUser = user;
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'none';
+        if (typeof loadUserTrades === 'function') loadUserTrades();
+    }
+});
+
+// تابع ثبت‌نام کاربر جدید
+async function handleSignUp() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    
+    if(!email || !password) return alert("لطفاً ایمیل و رمز عبور را وارد کنید.");
+    
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) alert("خطا در ثبت‌نام: " + error.message);
+    else alert("ثبت‌نام موفقیت‌آمیز بود! اکنون می‌توانید وارد شوید.");
+}
+
+// تابع ورود به حساب
+async function handleLogin() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    
+    if(!email || !password) return alert("لطفاً ایمیل و رمز عبور را وارد کنید.");
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+        alert("خطا در ورود: " + error.message);
+    } else {
+        currentUser = data.user;
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'none';
+        if (typeof loadUserTrades === 'function') loadUserTrades();
+    }
+}
+
+// تابع خروج از حساب
+async function handleLogout() {
+    await supabaseClient.auth.signOut();
+    location.reload();
+}
+// ==========================================
 /* ============================================================
    DATA
 ============================================================ */
