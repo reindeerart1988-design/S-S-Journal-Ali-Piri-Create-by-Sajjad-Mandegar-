@@ -5,6 +5,16 @@
    Space Grotesk for numbers and financial data.
 ============================================================ */
 
+/* مخفی کردن اختصاصی پاپ‌آپ ورود گوگل بدون آسیب به استایل‌های اصلی پروژه */
+#credential_picker_container,
+#credential_picker_iframe,
+#g_id_onload,
+iframe[src*="accounts.google.com/gsi"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 :root{
   /* Light theme kept for completeness, but the app defaults to dark */
   --blue:#1f5fd0; --blue-light:#4d86e8; --blue-dark:#12408f; --blue-soft:rgba(31,95,208,.12);
@@ -314,7 +324,7 @@ select.filter{ background:var(--panel); border:1px solid var(--line); color:var(
 .cl-row.skipped{ border-color:var(--red); background:var(--red-soft); }
 .cl-row.skipped .cl-n{ background:var(--red); border-color:var(--red); color:#fff; }
 .cl-head{ display:flex; align-items:center; gap:10px; }
-.cl-n{ width:28px; height:28px; border-radius:9px; background:var(--panel); border:1px solid var(--line); color:var(--muted); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-size:12px; font-weight:700; flex:0 0 auto; }
+.cl-n{ width:28px; height:28px; border-radius:99px; background:var(--panel); border:1px solid var(--line); color:var(--muted); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-size:12px; font-weight:700; flex:0 0 auto; }
 .cl-row.done .cl-n{ background:var(--emerald); border-color:var(--emerald); color:#04150d; }
 .cl-t{ font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
 .cl-t i{ font-style:normal; font-family:'JetBrains Mono'; font-size:10.5px; font-weight:600; color:var(--faint); border:1px solid var(--line); border-radius:6px; padding:2px 7px; }
