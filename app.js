@@ -171,8 +171,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     try{
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (user) {
-            showApp(user);
-            if (typeof loadUserTrades === 'function') await loadUserTrades();
+            const approved = await isUserApproved(user.id);
+            if (approved) {
+                showApp(user);
+                if (typeof loadUserTrades === 'function') await loadUserTrades();
+            } else {
+                await supabaseClient.auth.signOut();
+                showAuthForm();
+                showAuthMsg("حساب شما هنوز توسط مدیر تایید نشده است.");
+            }
         } else {
             showAuthForm();
         }
@@ -197,6 +204,23 @@ window.addEventListener('DOMContentLoaded', async () => {
         e.target.value = '';
     });
 });
+
+/* بررسی می‌کند که آیا حساب کاربر توسط مدیر تایید شده است یا نه.
+   این تابع سطر متناظر کاربر را در جدول profiles می‌خواند. */
+async function isUserApproved(userId){
+    try{
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('is_approved')
+            .eq('id', userId)
+            .single();
+        if(error) throw error;
+        return !!(data && data.is_approved);
+    }catch(e){
+        console.error('Approval check failed', e);
+        return false;
+    }
+}
 
 // تابع ثبت‌نام کاربر جدید
 async function handleSignUp() {
@@ -224,11 +248,19 @@ async function handleLogin() {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
         showAuthMsg("خطا در ورود: " + error.message);
-    } else {
-        showAuthMsg('');
-        showApp(data.user);
-        if (typeof loadUserTrades === 'function') await loadUserTrades();
+        return;
     }
+
+    const approved = await isUserApproved(data.user.id);
+    if (!approved) {
+        showAuthMsg("حساب شما هنوز توسط مدیر تایید نشده است. لطفاً کمی صبر کنید و دوباره امتحان کنید.");
+        await supabaseClient.auth.signOut();
+        return;
+    }
+
+    showAuthMsg('');
+    showApp(data.user);
+    if (typeof loadUserTrades === 'function') await loadUserTrades();
 }
 
 // تابع خروج از حساب
