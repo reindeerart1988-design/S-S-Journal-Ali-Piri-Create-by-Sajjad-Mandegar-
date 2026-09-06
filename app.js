@@ -78,6 +78,7 @@ async function handleLogin() {
 // تابع خروج از حساب
 async function handleLogout() {
     await supabaseClient.auth.signOut();
+    try{ localStorage.removeItem('ss:trades'); localStorage.removeItem('ss:settings'); }catch(e){}
     location.reload();
 }
 // ==========================================
@@ -1943,6 +1944,11 @@ async function syncToSupabase(silent){
    user's row (if any) and replaces the local trades/settings with it. */
 async function loadUserTrades(){
   if(!currentUser) return;
+  /* Always start from a clean slate: this browser's localStorage cache may
+     hold another user's data from a previous session on the same device. */
+  trades = [];
+  settings = { ...DEFAULT_SETTINGS };
+  supaRowId = null;
   try{
     setSyncStatus('در حال دریافت از سرور…');
     const { data, error } = await supabaseClient
@@ -1958,8 +1964,6 @@ async function loadUserTrades(){
       const payload = data.trade_data || {};
       if(Array.isArray(payload.trades)) trades = payload.trades.map(migrateTrade);
       if(payload.settings) settings = Object.assign({}, DEFAULT_SETTINGS, payload.settings);
-    } else {
-      supaRowId = null;
     }
     setSyncStatus('متصل — ' + (currentUser.email||''), 'ok');
   }catch(e){
