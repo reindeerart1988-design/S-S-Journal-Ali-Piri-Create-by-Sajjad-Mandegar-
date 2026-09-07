@@ -120,6 +120,30 @@ async function saveProfile(){
     }
 }
 
+/* Lets a logged-in user change their password directly from the Account tab
+   (separate from the "forgot password" email-link flow above). */
+async function changePasswordFromProfile(){
+    const msgEl = document.getElementById('profile-password-msg');
+    const pwEl = document.getElementById('profile-new-password');
+    const pw2El = document.getElementById('profile-new-password-confirm');
+    const pw = (pwEl && pwEl.value) || '';
+    const pw2 = (pw2El && pw2El.value) || '';
+    const setMsg = (text, ok)=>{ if(msgEl){ msgEl.textContent = text; msgEl.style.color = ok ? 'var(--emerald)' : 'var(--red)'; } };
+    if(!pw || pw.length < 6) return setMsg('رمز عبور باید حداقل ۶ کاراکتر باشد.', false);
+    if(pw !== pw2) return setMsg('تکرار رمز عبور با رمز عبور یکسان نیست.', false);
+    try{
+        const { error } = await supabaseClient.auth.updateUser({ password: pw });
+        if(error) throw error;
+        if(pwEl) pwEl.value = '';
+        if(pw2El) pw2El.value = '';
+        setMsg('رمز عبور با موفقیت تغییر کرد ✓', true);
+        showToast('رمز عبور تغییر کرد ✓');
+    }catch(e){
+        console.error('Password change failed', e);
+        setMsg('خطا در تغییر رمز عبور: ' + (e.message||''), false);
+    }
+}
+
 /* Upload a new avatar photo to the "avatars" Storage bucket and save its
    public URL on the user's profile. Requires a public "avatars" bucket. */
 async function uploadAvatar(file){
@@ -197,6 +221,33 @@ window.addEventListener('DOMContentLoaded', async () => {
     const saveProfileBtn = document.getElementById('saveProfileBtn');
     if(saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfile);
 
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    if(changePasswordBtn) changePasswordBtn.addEventListener('click', changePasswordFromProfile);
+
+    const accountChip = document.getElementById('accountChip');
+    if(accountChip) accountChip.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('account'); });
+
+    const addAccountBtn = document.getElementById('addAccountBtn');
+    if(addAccountBtn) addAccountBtn.addEventListener('click', ()=>{
+        const name = prompt('نام حساب جدید (مثلاً: پراپ ۱۰۰ هزاری):', 'حساب ' + (accounts.length+1));
+        if(name===null) return; /* cancelled */
+        addAccount(name);
+    });
+
+    const accountsListWrap = document.getElementById('accountsListWrap');
+    if(accountsListWrap){
+        accountsListWrap.addEventListener('click', e=>{
+            const sw = e.target.closest('.acc-switch-btn');
+            if(sw){ switchAccount(sw.dataset.id); return; }
+            const del = e.target.closest('.acc-delete-btn');
+            if(del){ deleteAccount(del.dataset.id); return; }
+        });
+        accountsListWrap.addEventListener('change', e=>{
+            const input = e.target.closest('.acc-name-input');
+            if(input) renameAccount(input.dataset.id, input.value);
+        });
+    }
+
     const avatarInput = document.getElementById('avatarInput');
     if(avatarInput) avatarInput.addEventListener('change', (e)=>{
         const f = e.target.files[0];
@@ -266,7 +317,7 @@ async function handleLogin() {
 // تابع خروج از حساب
 async function handleLogout() {
     await supabaseClient.auth.signOut();
-    try{ localStorage.removeItem('ss:trades'); localStorage.removeItem('ss:settings'); }catch(e){}
+    try{ localStorage.removeItem('ss:trades'); localStorage.removeItem('ss:settings'); localStorage.removeItem('ss:accounts'); localStorage.removeItem('ss:activeAccountId'); }catch(e){}
     location.reload();
 }
 // ==========================================
@@ -319,24 +370,19 @@ const SETUPS = {
   },
   aggressive: {
     id:'aggressive', label:'ورود تهاجمی', tag:'AGG', accent:'red',
-    desc:'ورود زودهنگام در ۱ دقیقه با تأیید مومنتوم و iFVG، قبل از کلوز کندل ۱۵ دقیقه.',
+    desc:'فقط داخل کیل‌زون ۸:۳۰ تا ۱۱. ورود در ۱ دقیقه روی سقف/کف سشن یا روز جاری، با CISD/MSS و iFVG.',
     steps:[
-      { ...STEP_POI, help:'یک ناحیهٔ نقدینگی (<b>BSL</b> یا <b>SSL</b>) که قیمت هنوز به آن نرسیده، هدف حرکت است.' },
-      { n:'2', title:'تشخیص مومنتوم لگ', tf:'15m',
-        items:[
-          {key:'leg_strong', label:'لگ قوی و بدون Pullback زیاد'},
-          {key:'leg_fvg', label:'FVG',en:true},
-          {key:'m15_cisd', label:'ساختار 15M / CISD',en:true}
-        ],
-        multi:true,
-        help:'برای اینکه مطمئن شویم حرکت واقعاً مومنتوم دارد و صرفاً برای گرفتن لیکوییدیتی نیست، هر سه نشانه باید تأیید شوند: <b>۱)</b> قدرت لگ حرکتی، <b>۲)</b> وجود FVG در لگ، <b>۳)</b> ساختار ۱۵ دقیقه و تشکیل CISD. اگر حرکت ضعیف و پر از Pullback باشد و در مسیرش نقدینگی بسازد، احتمال Reversal بعد از گرفتن POI بیشتر است.',
+      { n:'1', title:'Liquidity / POI', tf:'15m',
+        items:[ {key:'ssl_session',label:'SSL سشن/روز',en:true}, {key:'bsl_session',label:'BSL سشن/روز',en:true} ],
+        note:'فقط داخل بازهٔ کیل‌زون صبح (۸:۳۰ تا ۱۱ نیویورک) فعالیت می‌کنیم.',
+        help:'در این سناریو فقط سقف و کف <b>سشن‌های همان روز</b> (آسیا، لندن) یا سقف و کف <b>روز جاری</b> اهمیت دارند؛ نیازی به سقف/کف روزهای قبل یا سویینگ‌های دورتر نیست. به محض لمس یا سویپ (Sweep) یکی از این سطوح، بلافاصله به تایم‌فریم ۱ دقیقه منتقل می‌شویم.',
         helpAlways:true },
-      { n:'3', title:'iFVG قبل از CISD/MSS', tf:'1m',
-        items:[ {key:'ifvg', label:'iFVG وجود دارد',en:true} ],
-        note:'⚠ الزامی: اگر قبل از CISD/MSS یک iFVG وجود نداشته باشد، این ستاپ کنسل است و نباید وارد معامله شد.',
-        help:'می‌توانیم روی کندل ۱۵ دقیقه‌ای که هنوز کلوز نداده، ورود را در تایم‌فریم ۱ دقیقه انجام دهیم؛ اما فقط وقتی که یک <b>iFVG</b> قبل از <b>CISD/MSS</b> شکل گرفته باشد.' },
-      { ...STEP_CONFIRMATION, n:'4' },
-      { ...STEP_BREAK_OB, n:'5' }
+      { ...STEP_CONFIRMATION, n:'2' },
+      { n:'3', title:'iFVG', tf:'1m',
+        items:[ {key:'ifvg', label:'iFVG قبل از CISD/MSS شکل گرفت',en:true} ],
+        note:'⚠ الزامی: قبل از CISD/MSS باید یک iFVG وجود داشته باشد؛ در غیر این صورت سناریو کنسل است.',
+        help:'با بازگشت قیمت (Retrace) به همین iFVG وارد می‌شویم. شرط ابطال: اگر iFVG پر (Fill) شود، سناریو کلاً فیل شده است.' },
+      { ...STEP_BREAK_OB, n:'4' }
     ]
   }
 };
@@ -387,22 +433,141 @@ function flagStorageProblem(msg){
   else b.classList.remove('on');
 }
 
-function loadTrades(){ try{ const v=localStorage.getItem('ss:trades'); return v?JSON.parse(v):[]; }catch(e){ return []; } }
-function saveTrades(list){
-  try{ localStorage.setItem('ss:trades', JSON.stringify(list)); flagStorageProblem(''); return true; }
-  catch(e){
+/* ============================================================
+   MULTI-ACCOUNT MODEL
+   Each account has its own trades[] + its own balance/commission.
+   Stored as ONE array under 'ss:accounts' (no Supabase schema change
+   needed — it travels inside the same JSON blob the app already synced
+   as {trades, settings}). Old single-account data is migrated in place
+   the first time this runs.
+============================================================ */
+function genAccountId(){ return 'acc_'+Date.now()+Math.random().toString(36).slice(2,7); }
+
+function loadAccountsFromStorage(){
+  try{
+    const v = localStorage.getItem('ss:accounts');
+    if(v){
+      const arr = JSON.parse(v);
+      if(Array.isArray(arr) && arr.length) return arr;
+    }
+  }catch(e){}
+  /* Migrate legacy single-account storage ('ss:trades' + 'ss:settings') */
+  let legacyTrades = [], legacySettings = {};
+  try{ const v = localStorage.getItem('ss:trades'); legacyTrades = v?JSON.parse(v):[]; }catch(e){}
+  try{ const v = localStorage.getItem('ss:settings'); legacySettings = v?JSON.parse(v):{}; }catch(e){}
+  return [{
+    id:'acc_default',
+    name:'حساب اصلی',
+    initialBalance: legacySettings.initialBalance!=null ? legacySettings.initialBalance : DEFAULT_SETTINGS.initialBalance,
+    commissionPerLot: legacySettings.commissionPerLot!=null ? legacySettings.commissionPerLot : DEFAULT_SETTINGS.commissionPerLot,
+    trades: Array.isArray(legacyTrades) ? legacyTrades : []
+  }];
+}
+function saveAccountsToStorage(){
+  try{
+    localStorage.setItem('ss:accounts', JSON.stringify(accounts));
+    localStorage.setItem('ss:activeAccountId', activeAccountId || '');
+    flagStorageProblem('');
+    return true;
+  }catch(e){
     flagStorageProblem('حافظهٔ مرورگر پر است یا نوشتن ممکن نیست. داده‌های این نشست ذخیره نشده‌اند — همین حالا خروجی JSON بگیر.');
     return false;
   }
 }
+function getActiveAccount(){ return accounts.find(a=>a.id===activeAccountId) || accounts[0]; }
+
+function loadTrades(){ const acc = getActiveAccount(); return acc && Array.isArray(acc.trades) ? acc.trades : []; }
+function saveTrades(list){
+  const acc = getActiveAccount(); if(!acc) return false;
+  acc.trades = list;
+  return saveAccountsToStorage();
+}
 function loadSettings(){
-  try{ const v=localStorage.getItem('ss:settings'); return Object.assign({}, DEFAULT_SETTINGS, v?JSON.parse(v):{}); }
-  catch(e){ return { ...DEFAULT_SETTINGS }; }
+  const acc = getActiveAccount();
+  return acc ? Object.assign({}, DEFAULT_SETTINGS, { initialBalance:acc.initialBalance, commissionPerLot:acc.commissionPerLot }) : { ...DEFAULT_SETTINGS };
 }
 function saveSettings(s){
-  try{ localStorage.setItem('ss:settings', JSON.stringify(s)); flagStorageProblem(''); return true; }
-  catch(e){ flagStorageProblem('ذخیرهٔ تنظیمات ممکن نشد (حافظهٔ مرورگر پر است).'); return false; }
+  const acc = getActiveAccount(); if(!acc) return false;
+  acc.initialBalance = s.initialBalance;
+  acc.commissionPerLot = s.commissionPerLot;
+  return saveAccountsToStorage();
 }
+
+function updateAccountSwitcherUI(){
+  const chip = document.getElementById('accountChip');
+  const acc = getActiveAccount();
+  if(chip){ chip.textContent = acc ? acc.name : ''; chip.title = 'حساب فعال: ' + (acc?acc.name:'') + ' — برای سوییچ/مدیریت حساب‌ها بزن'; }
+}
+
+function renderAccountsPanel(){
+  const wrap = document.getElementById('accountsListWrap');
+  if(!wrap) return;
+  wrap.innerHTML = accounts.map(a=>{
+    const active = a.id===activeAccountId;
+    const count = Array.isArray(a.trades) ? a.trades.length : 0;
+    return `<div class="account-row ${active?'active':''}" data-id="${esc(a.id)}">
+      <input type="text" class="acc-name-input" data-id="${esc(a.id)}" value="${esc(a.name)}">
+      <span class="acc-meta">${count} trades · ${esc(fmtUSD(a.initialBalance))}</span>
+      ${active ? '<span class="account-badge-active">فعال</span>' : `<button type="button" class="btn btn-sm acc-switch-btn" data-id="${esc(a.id)}">انتخاب</button>`}
+      ${accounts.length>1 ? `<button type="button" class="btn btn-sm btn-danger acc-delete-btn" data-id="${esc(a.id)}">حذف</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* Re-points the global trades/settings at the active account and refreshes
+   every view that reads them. Called after switching/adding/deleting an
+   account, or after a fresh cloud load. */
+function reloadActiveAccountIntoApp(){
+  trades = loadTrades().map(migrateTrade);
+  settings = loadSettings();
+  rebuildIndex();
+  resetForm();
+  renderStandaloneChecklist();
+  populateAccountFields();
+  populateFilters();
+  renderDashboard(); renderCalendar();
+  renderTradesList();
+  renderAccountsPanel();
+  updateAccountSwitcherUI();
+}
+
+function switchAccount(id){
+  if(!accounts.find(a=>a.id===id) || id===activeAccountId) return;
+  activeAccountId = id;
+  saveAccountsToStorage();
+  reloadActiveAccountIntoApp();
+  scheduleAutoSync();
+  showToast('حساب فعال شد: ' + getActiveAccount().name);
+}
+function addAccount(name){
+  const acc = { id:genAccountId(), name:(name||'').trim() || ('حساب '+(accounts.length+1)), initialBalance:10000, commissionPerLot:5, trades:[] };
+  accounts.push(acc);
+  activeAccountId = acc.id;
+  saveAccountsToStorage();
+  reloadActiveAccountIntoApp();
+  scheduleAutoSync();
+  showToast('حساب جدید اضافه شد ✓');
+  return acc;
+}
+function renameAccount(id, name){
+  const acc = accounts.find(a=>a.id===id); if(!acc) return;
+  acc.name = (name||'').trim() || acc.name;
+  saveAccountsToStorage();
+  renderAccountsPanel(); updateAccountSwitcherUI();
+  scheduleAutoSync();
+}
+function deleteAccount(id){
+  if(accounts.length<=1){ showToast('حداقل یک حساب باید باقی بماند'); return; }
+  const acc = accounts.find(a=>a.id===id); if(!acc) return;
+  if(!confirm(`حساب «${acc.name}» و همهٔ معاملات آن برای همیشه حذف شود؟`)) return;
+  accounts = accounts.filter(a=>a.id!==id);
+  if(activeAccountId===id) activeAccountId = accounts[0].id;
+  saveAccountsToStorage();
+  reloadActiveAccountIntoApp();
+  scheduleAutoSync();
+  showToast('حساب حذف شد');
+}
+
 function loadTheme(){ try{ return localStorage.getItem('ss:theme') || 'dark'; }catch(e){ return 'dark'; } }
 function saveTheme(t){ try{ localStorage.setItem('ss:theme', t); }catch(e){} }
 function applyTheme(t){
@@ -434,6 +599,14 @@ function shiftISO(iso, days, months){
 /* ============================================================
    STATE
 ============================================================ */
+let accounts = loadAccountsFromStorage();
+let activeAccountId = (function(){
+  try{
+    const v = localStorage.getItem('ss:activeAccountId');
+    if(v && accounts.find(a=>a.id===v)) return v;
+  }catch(e){}
+  return accounts[0] ? accounts[0].id : null;
+})();
 let trades = [];
 let settings = { initialBalance:10000, commissionPerLot:5 };
 let editingTradeId = null;
@@ -967,7 +1140,7 @@ function renderTradeDetail(inner, id){
       <div class="detail-meta-item"><div class="k en">COMMISSION</div><div class="v en">${fmtUSD(commission)}</div></div>
       <div class="detail-meta-item"><div class="k en">NET</div><div class="v en" style="color:${net>=0?'var(--blue)':'var(--red)'}">${fmtUSD(net)}</div></div>
     </div>
-    <div class="detail-cl"><span class="cl-setup-badge" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${getSetup(t.setupId).steps.map(step=>{
+    <div class="detail-cl"><span class="cl-setup-badge ${getSetup(t.setupId).accent==='red'?'tone-red':''}" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${getSetup(t.setupId).steps.map(step=>{
       if(step.type==='conditional'){
         const done = stepDone(step,t.checklist||{});
         const ft = t.checklist && t.checklist[step.followKey];
@@ -2111,7 +2284,7 @@ async function syncToSupabase(silent){
   if(!currentUser) return true;
   try{
     setSyncStatus('در حال ذخیره در سرور…');
-    const payload = { trades, settings, syncedAt:new Date().toISOString() };
+    const payload = { accounts, activeAccountId, syncedAt:new Date().toISOString() };
     if(supaRowId){
       const { error } = await supabaseClient.from('trades')
         .update({ trade_data: payload })
@@ -2137,13 +2310,16 @@ async function syncToSupabase(silent){
 }
 
 /* Called right after login/signup and on an existing session. Pulls this
-   user's row (if any) and replaces the local trades/settings with it. */
+   user's row (if any) and replaces the local accounts (all of them, with
+   all their trades/settings) with what's in the cloud. Understands both the
+   new {accounts:[...]} payload and the old single-account {trades,settings}
+   payload from before multi-account support, migrating the latter in place. */
 async function loadUserTrades(){
   if(!currentUser) return;
   /* Always start from a clean slate: this browser's localStorage cache may
      hold another user's data from a previous session on the same device. */
-  trades = [];
-  settings = { ...DEFAULT_SETTINGS };
+  accounts = [{ id:'acc_default', name:'حساب اصلی', initialBalance:DEFAULT_SETTINGS.initialBalance, commissionPerLot:DEFAULT_SETTINGS.commissionPerLot, trades:[] }];
+  activeAccountId = accounts[0].id;
   supaRowId = null;
   try{
     setSyncStatus('در حال دریافت از سرور…');
@@ -2158,8 +2334,25 @@ async function loadUserTrades(){
     if(data){
       supaRowId = data.id;
       const payload = data.trade_data || {};
-      if(Array.isArray(payload.trades)) trades = payload.trades.map(migrateTrade);
-      if(payload.settings) settings = Object.assign({}, DEFAULT_SETTINGS, payload.settings);
+      if(Array.isArray(payload.accounts) && payload.accounts.length){
+        accounts = payload.accounts.map(a=>({
+          id: a.id || genAccountId(),
+          name: a.name || 'حساب',
+          initialBalance: a.initialBalance!=null ? a.initialBalance : DEFAULT_SETTINGS.initialBalance,
+          commissionPerLot: a.commissionPerLot!=null ? a.commissionPerLot : DEFAULT_SETTINGS.commissionPerLot,
+          trades: Array.isArray(a.trades) ? a.trades.map(migrateTrade) : []
+        }));
+        activeAccountId = (payload.activeAccountId && accounts.find(a=>a.id===payload.activeAccountId)) ? payload.activeAccountId : accounts[0].id;
+      } else if(Array.isArray(payload.trades)){
+        /* legacy pre-multi-account cloud payload */
+        accounts = [{
+          id:'acc_default', name:'حساب اصلی',
+          initialBalance: (payload.settings && payload.settings.initialBalance!=null) ? payload.settings.initialBalance : DEFAULT_SETTINGS.initialBalance,
+          commissionPerLot: (payload.settings && payload.settings.commissionPerLot!=null) ? payload.settings.commissionPerLot : DEFAULT_SETTINGS.commissionPerLot,
+          trades: payload.trades.map(migrateTrade)
+        }];
+        activeAccountId = accounts[0].id;
+      }
     }
     setSyncStatus('متصل — ' + (currentUser.email||''), 'ok');
   }catch(e){
@@ -2167,14 +2360,8 @@ async function loadUserTrades(){
     setSyncStatus('دریافت از سرور ناموفق بود', 'err');
     showToast('دریافت داده از سرور ناموفق بود');
   }
-  rebuildIndex();
-  saveTrades(trades);
-  saveSettings(settings);
-  refreshAll();
-  renderStandaloneChecklist();
-  populateAccountFields();
-  populateFilters();
-  renderTradesList();
+  saveAccountsToStorage();
+  reloadActiveAccountIntoApp();
 }
 
 /* ---------- wiring ---------- */
@@ -2237,5 +2424,7 @@ function init(){
   populateFilters();
   renderDashboard(); renderCalendar();
   renderTradesList();
+  renderAccountsPanel();
+  updateAccountSwitcherUI();
 }
 init();
