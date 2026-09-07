@@ -41,18 +41,10 @@
       if(!active){ pill.classList.remove('on'); return; }
       var navRect = nav.getBoundingClientRect();
       var r = active.getBoundingClientRect();
-      var vertical = window.innerWidth > 820;
-      if(vertical){
-        pill.style.top = (r.top - navRect.top) + 'px';
-        pill.style.height = r.height + 'px';
-        pill.style.left = '0';
-        pill.style.width = '100%';
-      } else {
-        pill.style.left = (r.left - navRect.left) + 'px';
-        pill.style.width = r.width + 'px';
-        pill.style.top = '0';
-        pill.style.height = '100%';
-      }
+      pill.style.left = (r.left - navRect.left) + 'px';
+      pill.style.width = r.width + 'px';
+      pill.style.top = '0';
+      pill.style.height = '100%';
       pill.classList.add('on');
     }
 
