@@ -2,7 +2,7 @@
    (Add to Home Screen) and opens instantly even on a flaky connection.
    Trade data itself always comes from Supabase over the network — this
    only caches the static files (HTML/CSS/JS/icons), not user data. */
-const CACHE_NAME = 'ss-journal-v1';
+const CACHE_NAME = 'ss-journal-v3';
 const APP_SHELL = [
   './',
   './index.html',
