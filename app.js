@@ -273,83 +273,36 @@ async function handleLogout() {
 /* ============================================================
    DATA
 ============================================================ */
-/* Shared first step for every setup: finding the liquidity POI on the 15m chart. */
-const STEP_POI = { n:'1', title:'Liquidity / POI', tf:'15m',
-  items:[ {key:'bsl',label:'BSL',en:true}, {key:'ssl',label:'SSL',en:true}, {key:'fvg',label:'FVG',en:true}, {key:'ob',label:'Order Block',en:true} ],
-  help:'یک نقطهٔ نقدینگی (POI) روی تایم‌فریم ۱۵ دقیقه پیدا کن: یک <b>BSL</b> یا <b>SSL</b> گرفته‌نشده، یا یک <b>FVG</b>/<b>Order Block</b> که قیمت به آن واکنش نشان می‌دهد. این نقطه، محل احتمالی برگشت قیمت است.',
-  helpAlways:true };
-const STEP_CRT_BOX = { n:'2', title:'CRT / BOX', tf:'15m',
-  items:[ {key:'crt',label:'CRT',en:true}, {key:'box',label:'BOX',en:true} ],
-  note:'فقط تا ۲ کندل بعد از C1 اجازهٔ ورود داریم؛ یعنی فقط C2 و C3. بعد از C3 دیگر ورود مجاز نیست.',
-  condNotes:[
-    {when:'crt', text:'C1: کندلی که CRT را تشکیل داده (کندل اول)'},
-    {when:'box', text:'C1: کندلی که به داخل رنج کندل اول برگشته و با بدنه بالای SSL یا پایین BSL کلوز داده'}
-  ] };
-const STEP_CONFIRMATION = { n:'3', title:'Confirmation', tf:'1m',
-  items:[ {key:'cisd',label:'CISD',en:true}, {key:'mss',label:'MSS',en:true} ],
-  help:'<b>CISD</b> یا <b>MSS</b> روی تایم‌فریم ۱ دقیقه یعنی شکست ساختار قیمت بعد از گرفتن لیکوییدیتی — نشانهٔ برگشت واقعی قیمت و آماده شدن برای ورود.' };
-const STEP_BREAK_OB = { n:'break', title:'Break OB', tf:'1m',
-  items:[ {key:'breakob',label:'✓'} ] };
-
-const SETUPS = {
-  standard: {
-    id:'standard', label:'استاندارد (۵۰٪)', tag:'STD', accent:'blue',
-    desc:'برگشت قیمت به ۵۰٪ همان Order Block بعد از تأیید CISD/MSS.',
-    steps:[
-      STEP_POI, STEP_CRT_BOX, STEP_CONFIRMATION,
-      { n:'4', title:'نقطهٔ ورود: ۵۰٪', tf:'1m',
-        items:[ {key:'ob50',label:'رسیدن به ۵۰٪ OB'} ],
-        help:'بعد از <b>CISD/MSS</b> صبر می‌کنیم قیمت به ۵۰٪ همان <b>Order Block</b> برگردد و از آنجا وارد شویم.' },
-      { n:'5', title:'Stop Run (SR)', tf:'1m', type:'conditional',
-        followKey:'followThrough', condKey:'sr', followLabel:'Follow Through', condLabel:'SR',
-        note:'اگر بعد از CISD/MSS سه کندل کلوز بدهد، حتماً باید منتظر Follow Through (FT) باشیم و Stop Run نیاز داریم.' },
-      { ...STEP_BREAK_OB, n:'6' }
-    ]
-  },
-  breaker: {
-    id:'breaker', label:'بریکر بلاک', tag:'BB', accent:'amber',
-    desc:'ورود با شکست Breaker Block پشت CISD/MSS، بدون نیاز به رسیدن قیمت به ۵۰٪.',
-    steps:[
-      STEP_POI, STEP_CRT_BOX, STEP_CONFIRMATION,
-      { n:'4', title:'Breaker Block پشت CISD/MSS', tf:'1m',
-        items:[ {key:'bb_cisd',label:'BB شناسایی شد',en:true} ],
-        help:'دنبال یک <b>Breaker Block</b> قبل از CISD/MSS می‌گردیم. وقتی قیمت داخل این محدوده شد، با شکست OB وارد می‌شویم. دقت کنیم! اگر استاپ خوردیم یعنی قیمت قصد دارد به ۵۰٪ برگردد — استاپ ما در واقع همان Stop Run بوده و باید طبق سناریوی ۵۰٪ دوباره ورودمان را انجام دهیم.' },
-      { ...STEP_BREAK_OB, n:'5' }
-    ]
-  },
-  aggressive: {
-    id:'aggressive', label:'ورود تهاجمی', tag:'AGG', accent:'red',
-    desc:'ورود زودهنگام در ۱ دقیقه با تأیید مومنتوم و iFVG، قبل از کلوز کندل ۱۵ دقیقه.',
-    steps:[
-      { ...STEP_POI, help:'یک ناحیهٔ نقدینگی (<b>BSL</b> یا <b>SSL</b>) که قیمت هنوز به آن نرسیده، هدف حرکت است.' },
-      { n:'2', title:'تشخیص مومنتوم لگ', tf:'15m',
-        items:[
-          {key:'leg_strong', label:'لگ قوی و بدون Pullback زیاد'},
-          {key:'leg_fvg', label:'FVG',en:true},
-          {key:'m15_cisd', label:'ساختار 15M / CISD',en:true}
-        ],
-        multi:true,
-        help:'برای اینکه مطمئن شویم حرکت واقعاً مومنتوم دارد و صرفاً برای گرفتن لیکوییدیتی نیست، هر سه نشانه باید تأیید شوند: <b>۱)</b> قدرت لگ حرکتی، <b>۲)</b> وجود FVG در لگ، <b>۳)</b> ساختار ۱۵ دقیقه و تشکیل CISD. اگر حرکت ضعیف و پر از Pullback باشد و در مسیرش نقدینگی بسازد، احتمال Reversal بعد از گرفتن POI بیشتر است.',
-        helpAlways:true },
-      { n:'3', title:'iFVG قبل از CISD/MSS', tf:'1m',
-        items:[ {key:'ifvg', label:'iFVG وجود دارد',en:true} ],
-        note:'⚠ الزامی: اگر قبل از CISD/MSS یک iFVG وجود نداشته باشد، این ستاپ کنسل است و نباید وارد معامله شد.',
-        help:'می‌توانیم روی کندل ۱۵ دقیقه‌ای که هنوز کلوز نداده، ورود را در تایم‌فریم ۱ دقیقه انجام دهیم؛ اما فقط وقتی که یک <b>iFVG</b> قبل از <b>CISD/MSS</b> شکل گرفته باشد.' },
-      { ...STEP_CONFIRMATION, n:'4' },
-      { ...STEP_BREAK_OB, n:'5' }
-    ]
-  }
-};
-const SETUP_ORDER = ['standard','breaker','aggressive'];
-function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
+/* ============================================================
+   CHECKLIST — one unified 6-step flow (no more separate "setups").
+   Step 4 is a dependency chain: the CISD chip only unlocks once
+   iFVG is checked (see `dependsOn` + wireChecklist()/renderChecklistBlocks()).
+============================================================ */
+const CHECKLIST_STEPS = [
+  { n:'1', title:'Liquidity / POI', tf:'15m',
+    items:[ {key:'bsl',label:'BSL',en:true}, {key:'ssl',label:'SSL',en:true}, {key:'fvg',label:'FVG',en:true}, {key:'ob',label:'Order Block',en:true} ],
+    help:'یک نقطهٔ نقدینگی (POI) روی تایم‌فریم ۱۵ دقیقه پیدا کن: یک <b>BSL</b> یا <b>SSL</b> گرفته‌نشده، یا یک <b>FVG</b>/<b>Order Block</b> که قیمت به آن واکنش نشان می‌دهد. این نقطه، محل احتمالی برگشت قیمت است.',
+    helpAlways:true },
+  { n:'2', title:'CRT / BOX', tf:'15m',
+    items:[ {key:'with_crtbox', label:'با CRT/BOX'}, {key:'without_crtbox', label:'بدون CRT/BOX'} ],
+    help:'مشخص کن که ساختار CRT/BOX روی این ستاپ شکل گرفته یا نه.' },
+  { n:'3', title:'Confirmation', tf:'1m',
+    items:[ {key:'cisd',label:'CISD',en:true}, {key:'mss',label:'MSS',en:true} ],
+    help:'<b>CISD</b> یا <b>MSS</b> روی تایم‌فریم ۱ دقیقه یعنی شکست ساختار قیمت بعد از گرفتن لیکوییدیتی — نشانهٔ برگشت واقعی قیمت و آماده شدن برای ورود.' },
+  { n:'4', title:'iFVG → CISD', tf:'1m', multi:true,
+    items:[ {key:'ifvg', label:'iFVG',en:true}, {key:'chain_cisd', label:'CISD',en:true, dependsOn:'ifvg'} ],
+    note:'تا وقتی iFVG تیک نخورده، CISD این مرحله غیرفعال می‌ماند.',
+    help:'اول دنبال یک <b>iFVG</b> می‌گردیم؛ فقط بعد از تأیید آن نوبت به <b>CISD</b> می‌رسد. این زنجیره، شرط اصلی ورود روی iFVG است.' },
+  { n:'5', title:'پولبک به CISD', tf:'1m',
+    items:[ {key:'pullback_cisd', label:'پولبک به CISD'} ],
+    help:'بعد از تشکیل CISD، منتظر پولبک قیمت به همان ناحیهٔ CISD می‌مانیم.' },
+  { n:'6', title:'شکست OB', tf:'1m',
+    items:[ {key:'breakob', label:'شکست OB'} ],
+    help:'ورود نهایی با شکسته شدن Order Block انجام می‌شود.' }
+];
 
 function stepDone(step, state){
   state = state || {};
-  if(step.skipIfKey && state[step.skipIfKey]) return true;
-  if(step.type==='conditional'){
-    if(!state[step.followKey]) return true; /* no follow-through => this step isn't required */
-    return !!state[step.condKey];
-  }
   if(step.multi) return step.items.every(it=>!!state[it.key]);
   return step.items.some(it=>!!state[it.key]);
 }
@@ -437,7 +390,7 @@ function shiftISO(iso, days, months){
 let trades = [];
 let settings = { initialBalance:10000, commissionPerLot:5 };
 let editingTradeId = null;
-let standaloneChecklistState = { standard:{}, breaker:{}, aggressive:{} };
+let standaloneChecklistState = {};
 let formChecklistState = {};
 
 /* date -> trades[] index, rebuilt whenever the list changes. The calendar used
@@ -477,23 +430,22 @@ function migrateTrade(t){
   if(m.killzone==='NY AM' || m.killzone==='NY PM') m.killzone = 'NY Session';
   if(!KZ_OPTIONS.includes(m.killzone)) m.killzone = 'Out of Killzone';
   if(!m.trend) m.trend = m.direction==='sell' ? 'bearish' : 'bullish';
-  if(!m.setupId || !SETUPS[m.setupId]) m.setupId = 'standard';
   const c = m.checklist || {};
+  /* "with/without CRT-BOX" replaces the old separate crt+box checkboxes:
+     if either used to be checked, treat that trade as "با CRT/BOX". */
+  const hadCrtBox = !!(c.crt || c.box || c.with_crtbox);
   m.checklist = {
     bsl: !!(c.bsl || c.bsl_sweep), ssl: !!(c.ssl || c.ssl_sweep),
     fvg: !!(c.fvg || c.fvg_hit), ob: !!(c.ob || c.ob_hit),
-    crt: !!(c.crt || c.crt_box), box: !!c.box,
+    with_crtbox: hadCrtBox, without_crtbox: !!c.without_crtbox && !hadCrtBox,
     cisd: !!c.cisd, mss: !!c.mss,
-    ob50: !!(c.ob50 || c.stopraid || c.price_50 || c.fibo_50),
-    bb_cisd: !!(c.bb_cisd || c.bb),
-    leg_strong: !!c.leg_strong, leg_fvg: !!c.leg_fvg, m15_cisd: !!c.m15_cisd, ifvg: !!c.ifvg,
-    followThrough: !!c.followThrough,
-    sr: !!(c.sr || (c.followThrough && c.stopraid)),
+    ifvg: !!c.ifvg, chain_cisd: !!(c.chain_cisd && c.ifvg),
+    pullback_cisd: !!(c.pullback_cisd || c.ob50),
     breakob: !!(c.breakob || c.ob_broken)
   };
   if(m.links){ m.links = { '15': m.links['15']||'', '1': m.links['1']||'' }; }
   else m.links = { '15':'', '1':'' };
-  delete m.rrPlanned; delete m.entryTime; delete m.exitTime; delete m.entryPoint;
+  delete m.rrPlanned; delete m.entryTime; delete m.exitTime; delete m.entryPoint; delete m.setupId;
   return m;
 }
 
@@ -641,50 +593,29 @@ function renderChecklistBlocks(steps, state, ns){
   state = state || {};
   ns = ns || 'default';
   return steps.map(step=>{
-    let head, body, skipped = false;
-    if(step.type==='conditional'){
-      skipped = step.skipIfKey && !!state[step.skipIfKey];
-      head = `
-        <div class="cl-head">
-          <span class="cl-n en">${step.n}</span>
-          <span class="cl-t">${step.title} <i class="en">${step.tf}</i></span>
-          ${helpBtn(step, ns)}
-        </div>`;
-      if(skipped){
-        body = `<div class="chips"><span class="cl-skip">${step.skipLabel||'غیرضروری'}</span></div>`;
-      } else {
-        const ft = !!state[step.followKey];
-        const cond = !!state[step.condKey];
-        body = `
-        <div class="chips">
-          <button type="button" class="chip en ${ft?'on':''}" data-follow-key="${step.followKey}">${step.followLabel}</button>
-          <button type="button" class="chip en ${cond?'on':''}" data-cond-key="${step.condKey}" data-follow-key="${step.followKey}" ${ft?'':'disabled'}>${step.condLabel}</button>
-        </div>`;
-      }
-    } else {
-      head = `
-        <div class="cl-head">
-          <span class="cl-n en">${step.n}</span>
-          <span class="cl-t">${step.title} <i class="en">${step.tf}</i></span>
-          ${helpBtn(step, ns)}
-        </div>`;
-      body = `
-        <div class="chips">
-          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
-        </div>`;
-    }
+    const head = `
+      <div class="cl-head">
+        <span class="cl-n en">${step.n}</span>
+        <span class="cl-t">${step.title} <i class="en">${step.tf}</i></span>
+        ${helpBtn(step, ns)}
+      </div>`;
+    const body = `
+      <div class="chips">
+        ${step.items.map(it=>{
+          const locked = it.dependsOn && !state[it.dependsOn];
+          return `<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}" ${locked?'disabled':''}>${it.label}</button>`;
+        }).join('')}
+      </div>`;
     let note = '';
     if(step.note) note += `<div class="cl-note">${step.note}</div>`;
-    if(step.condNotes){
-      step.condNotes.forEach(cn=>{ if(state[cn.when]) note += `<div class="cl-note">${cn.text}</div>`; });
-    }
-    const rowClass = skipped ? 'skipped' : (stepDone(step,state) ? 'done' : '');
+    const rowClass = stepDone(step,state) ? 'done' : '';
     return `<div class="cl-row ${rowClass}">${head}${body}${note}${helpPanel(step, ns)}</div>`;
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
+      if(chip.disabled) return;
       const key = chip.dataset.key;
       const isOn = !!state[key];
       if(chip.dataset.multi!=='1'){
@@ -692,20 +623,9 @@ function wireChecklist(el, steps, state, after){
         step.items.forEach(it=> state[it.key]=false);
       }
       state[key] = !isOn;
-      after();
-    });
-  });
-  el.querySelectorAll('.chip[data-follow-key]').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      if(chip.dataset.condKey){
-        state[chip.dataset.condKey] = !state[chip.dataset.condKey];
-      } else {
-        const fk = chip.dataset.followKey;
-        state[fk] = !state[fk];
-        if(!state[fk]){
-          const step = steps.find(s=>s.followKey===fk);
-          if(step) state[step.condKey] = false;
-        }
+      if(isOn){
+        /* key was just turned OFF: also clear anything that depends on it */
+        steps.forEach(s=> s.items.forEach(it2=>{ if(it2.dependsOn===key) state[it2.key] = false; }));
       }
       after();
     });
@@ -722,30 +642,12 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'standard';
-function renderFormSetupSwitch(){
-  const el = document.getElementById('formSetupSwitch');
-  if(!el) return;
-  el.innerHTML = SETUP_ORDER.map(id=>{
-    const s = SETUPS[id];
-    return `<button type="button" class="chip accent-${s.accent} ${formSetupId===id?'on':''}" data-form-setup="${id}">${s.label}</button>`;
-  }).join('');
-  el.querySelectorAll('[data-form-setup]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const id = btn.dataset.formSetup;
-      if(id===formSetupId) return;
-      formSetupId = id; formChecklistState = {}; renderFormChecklist();
-    });
-  });
-}
 function renderFormChecklist(){
-  renderFormSetupSwitch();
   const el = document.getElementById('formChecklist');
-  const steps = getSetup(formSetupId).steps;
-  el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
-  wireChecklist(el, steps, formChecklistState, renderFormChecklist);
+  el.innerHTML = renderChecklistBlocks(CHECKLIST_STEPS, formChecklistState, 'form');
+  wireChecklist(el, CHECKLIST_STEPS, formChecklistState, renderFormChecklist);
 }
-function buildFormChecklist(setupId, checked){ formSetupId = setupId || 'standard'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
+function buildFormChecklist(checked){ formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
 
 function applyResultUI(){
   const res = getSeg('segResult');
@@ -793,7 +695,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('standard');
+  buildFormChecklist();
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -820,7 +722,7 @@ function openEditForm(t){
   document.getElementById('f-notes').value = t.notes||'';
   document.getElementById('f-link15').value = (t.links&&t.links['15'])||'';
   document.getElementById('f-link1').value = (t.links&&t.links['1'])||'';
-  buildFormChecklist(t.setupId||'standard', t.checklist||{});
+  buildFormChecklist(t.checklist||{});
   updateFormCalcLine();
   const p=document.getElementById('tradeFormPanel');
   p.classList.remove('hidden');
@@ -861,7 +763,6 @@ document.getElementById('tradeForm').addEventListener('submit', async e=>{
     entryReason: document.getElementById('f-entryReason').value,
     exitReason: document.getElementById('f-exitReason').value,
     notes: document.getElementById('f-notes').value,
-    setupId: formSetupId,
     checklist: { ...formChecklistState },
     links: {
       '15': document.getElementById('f-link15').value.trim(),
@@ -967,14 +868,7 @@ function renderTradeDetail(inner, id){
       <div class="detail-meta-item"><div class="k en">COMMISSION</div><div class="v en">${fmtUSD(commission)}</div></div>
       <div class="detail-meta-item"><div class="k en">NET</div><div class="v en" style="color:${net>=0?'var(--blue)':'var(--red)'}">${fmtUSD(net)}</div></div>
     </div>
-    <div class="detail-cl"><span class="cl-setup-badge" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${getSetup(t.setupId).steps.map(step=>{
-      if(step.type==='conditional'){
-        const done = stepDone(step,t.checklist||{});
-        const ft = t.checklist && t.checklist[step.followKey];
-        const cond = t.checklist && t.checklist[step.condKey];
-        const label = ft ? (cond? `${step.title} (${step.condLabel} ✓)` : `${step.title} (${step.condLabel} —)`) : `${step.title} (بدون Follow Through)`;
-        return `<span class="${done?'done':''}">${done?'✓':'—'} ${step.n}. ${label}</span>`;
-      }
+    <div class="detail-cl">${CHECKLIST_STEPS.map(step=>{
       const picked = step.items.filter(it=>t.checklist && t.checklist[it.key]);
       const done = picked.length>0;
       const label = step.items.length>1 && picked.length ? picked.map(p=>p.label).join(' + ') : step.title;
@@ -1399,6 +1293,197 @@ function renderDashboard(){
   renderRRMini(ann);
   renderExpectancy(ann);
   renderWinnersLosers(ann);
+  renderPerfBySide(ann);
+  renderPerfBySession(ann);
+  renderPerfByDay(ann);
+  renderTradeFrequency(ann);
+}
+
+/* ============================================================
+   PERFORMANCE — by side / by session / by day / trade frequency
+   All colors below come from CSS variables (--emerald, --amber,
+   --red, --track-bg, ...) so every chart stays readable and on-
+   brand in both the light and dark theme without any hardcoded hex.
+============================================================ */
+function arcDonutSegments(segments, size, thickness){
+  const r = (size-thickness)/2, c = 2*Math.PI*r;
+  let offset = 0;
+  const arcs = segments.map(seg=>{
+    const len = Math.max(0, Math.min(1, seg.value)) * c;
+    const dash = `${len.toFixed(2)} ${Math.max(0,c-len).toFixed(2)}`;
+    const dashoffset = (-offset).toFixed(2);
+    offset += len;
+    return `<circle class="donut-seg" cx="${size/2}" cy="${size/2}" r="${r}" style="stroke:${seg.color}" stroke-width="${thickness}" stroke-dasharray="${dash}" stroke-dashoffset="${dashoffset}"/>`;
+  }).join('');
+  return `<svg class="donut-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Distribution donut">
+    <circle class="donut-bg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${thickness}"/>
+    ${arcs}
+  </svg>`;
+}
+function miniRing(frac, color, size, thickness){
+  const r = (size-thickness)/2, c = 2*Math.PI*r, dash = c*Math.max(0, Math.min(1, frac||0));
+  return `<svg class="mini-ring" viewBox="0 0 ${size} ${size}" role="img" aria-label="Percentage gauge">
+    <circle class="mini-ring-bg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${thickness}"/>
+    <circle class="mini-ring-fg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${thickness}" style="stroke:${color}" stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"/>
+  </svg>`;
+}
+function winRateOf(list){
+  const w = list.filter(a=>a.eff==='win').length;
+  const l = list.filter(a=>a.eff==='loss').length;
+  const d = w+l;
+  return d ? w/d : 0;
+}
+function renderPerfBySide(ann){
+  const el = document.getElementById('perfSideGrid');
+  if(!el) return;
+  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
+  const buys = ann.filter(a=>a.t.direction==='buy');
+  const sells = ann.filter(a=>a.t.direction==='sell');
+  const total = ann.length;
+  const buyPct = total ? buys.length/total : 0;
+  const sellPct = total ? sells.length/total : 0;
+  const buyWR = winRateOf(buys), sellWR = winRateOf(sells);
+
+  el.innerHTML = `
+    <div class="side-card">
+      <h4 class="en">Total Trades</h4>
+      <div class="side-donut-wrap">
+        ${arcDonutSegments([ {value:buyPct, color:'var(--emerald)'}, {value:sellPct, color:'var(--amber)'} ], 140, 18)}
+        <div class="side-donut-center"><span class="en">${total}</span><small class="en">TRADES</small></div>
+      </div>
+      <div class="side-legend">
+        <span class="lg-item"><i style="background:var(--emerald)"></i>Buy <b class="en">${(buyPct*100).toFixed(1)}%</b></span>
+        <span class="lg-item"><i style="background:var(--amber)"></i>Sell <b class="en">${(sellPct*100).toFixed(1)}%</b></span>
+      </div>
+    </div>
+    <div class="side-card">
+      <h4 class="en">Win Rate</h4>
+      <div class="side-gauges">
+        <div class="side-gauge">
+          ${miniRing(buyWR, 'var(--emerald)', 88, 10)}
+          <div class="side-gauge-label"><b class="en">${(buyWR*100).toFixed(0)}%</b><span class="en">Buy</span></div>
+        </div>
+        <div class="side-gauge">
+          ${miniRing(sellWR, 'var(--amber)', 88, 10)}
+          <div class="side-gauge-label"><b class="en">${(sellWR*100).toFixed(0)}%</b><span class="en">Sell</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPerfBySession(ann){
+  const el = document.getElementById('perfSessionGrid');
+  if(!el) return;
+  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
+  const groups = {};
+  ann.forEach(a=>{
+    const k = a.t.killzone || 'Out of Killzone';
+    (groups[k] || (groups[k]=[])).push(a);
+  });
+  const order = KZ_OPTIONS.filter(k=>groups[k] && groups[k].length);
+  el.innerHTML = order.map(k=>{
+    const list = groups[k];
+    const wr = winRateOf(list)*100;
+    const avgRR = list.reduce((s,a)=>s+(Number(a.t.rr)||0),0)/list.length;
+    const net = list.reduce((s,a)=>s+a.net,0);
+    return `
+      <div class="session-card">
+        <div class="session-name en">${esc(k)}</div>
+        <div class="session-metrics">
+          <div class="session-metric"><span class="k en">Win Rate</span><b class="en ${wr>=50?'pos':'neg'}">${wr.toFixed(0)}%</b></div>
+          <div class="session-metric"><span class="k en">Trades</span><b class="en">${list.length}</b></div>
+          <div class="session-metric"><span class="k en">Avg RR</span><b class="en ${avgRR>=0?'pos':'neg'}">${fmtR(avgRR)}</b></div>
+          <div class="session-metric"><span class="k en">Net</span><b class="en ${net>=0?'pos':'neg'}">${fmtUSD(net)}</b></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+const WEEKDAYS_EN = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function renderPerfByDay(ann){
+  const el = document.getElementById('perfDayChart');
+  if(!el) return;
+  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
+  const buckets = WEEKDAYS_EN.map(()=>({ net:0, wins:0, losses:0, n:0 }));
+  ann.forEach(a=>{
+    const d = new Date((a.t.date||'')+'T00:00:00');
+    if(isNaN(d)) return;
+    const b = buckets[(d.getDay()+6)%7];
+    b.net += a.net; b.n++;
+    if(a.eff==='win') b.wins++; else if(a.eff==='loss') b.losses++;
+  });
+  const maxAbs = Math.max(1, ...buckets.map(b=>Math.abs(b.net)));
+  el.innerHTML = buckets.map((b,i)=>{
+    const decided = b.wins+b.losses;
+    const wr = decided ? (b.wins/decided*100) : null;
+    const widthPct = b.n ? Math.max(4, Math.abs(b.net)/maxAbs*100) : 0;
+    const isPos = b.net>=0;
+    return `
+      <div class="pday-row">
+        <span class="pday-lbl en">${WEEKDAYS_EN[i]}</span>
+        <div class="pday-track"><div class="pday-bar ${isPos?'pos':'neg'}" style="width:${widthPct}%"></div></div>
+        <span class="pday-val ${b.n?(isPos?'pos':'neg'):''}">${b.n ? esc(fmtUSD(b.net)) : '—'}</span>
+        <span class="pday-wr ${wr===null?'':(wr>=50?'pos':'neg')}">${wr===null?'—':wr.toFixed(0)+'%'}</span>
+      </div>`;
+  }).join('');
+}
+
+function isoWeekKey(d){
+  const t = new Date(d.getTime());
+  t.setHours(0,0,0,0);
+  t.setDate(t.getDate() + 3 - ((t.getDay()+6)%7));
+  const week1 = new Date(t.getFullYear(), 0, 4);
+  const weekNo = 1 + Math.round(((t-week1)/86400000 - 3 + ((week1.getDay()+6)%7)) / 7);
+  return t.getFullYear()+'-W'+weekNo;
+}
+function freqCard(title, avgLabel, series, labels){
+  const max = Math.max(1, ...series, 0);
+  const bars = series.map((v,i)=>`
+    <div class="freq-bar-wrap">
+      <div class="freq-bar" style="height:${Math.max(4, v/max*100)}%"></div>
+      ${labels ? `<span class="freq-bar-lbl en">${esc(labels[i])}</span>` : ''}
+    </div>`).join('');
+  return `
+    <div class="freq-card">
+      <div class="freq-head"><span class="en">${esc(title)}</span><b class="en">Avg ${esc(avgLabel)}</b></div>
+      <div class="freq-bars">${bars || '<div class="freq-bar-wrap"></div>'}</div>
+    </div>`;
+}
+function renderTradeFrequency(ann){
+  const el = document.getElementById('freqGrid');
+  if(!el) return;
+  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
+
+  const dayCounts = WEEKDAYS_EN.map(()=>0);
+  const distinctDays = new Set();
+  const weekCounts = new Map();
+  const monthCounts = new Map();
+
+  ann.forEach(a=>{
+    const dateStr = a.t.date || '';
+    if(!dateStr) return;
+    distinctDays.add(dateStr);
+    const d = new Date(dateStr+'T00:00:00');
+    if(isNaN(d)) return;
+    dayCounts[(d.getDay()+6)%7]++;
+    monthCounts.set(dateStr.slice(0,7), (monthCounts.get(dateStr.slice(0,7))||0)+1);
+    const wk = isoWeekKey(d);
+    weekCounts.set(wk, (weekCounts.get(wk)||0)+1);
+  });
+
+  const total = ann.length;
+  const avgPerDay = distinctDays.size ? total/distinctDays.size : 0;
+  const avgPerWeek = weekCounts.size ? total/weekCounts.size : 0;
+  const avgPerMonth = monthCounts.size ? total/monthCounts.size : 0;
+
+  const weekSeries = [...weekCounts.values()].slice(-8);
+  const monthSeries = [...monthCounts.values()].slice(-8);
+
+  el.innerHTML =
+    freqCard('Trades / day', avgPerDay.toFixed(2), dayCounts, WEEKDAYS_EN) +
+    freqCard('Trades / week', avgPerWeek.toFixed(1), weekSeries) +
+    freqCard('Trades / month', avgPerMonth.toFixed(0), monthSeries);
 }
 
 /* ============================================================
@@ -1581,52 +1666,27 @@ function renderCalendar(){
 }
 
 /* ============================================================
-   STANDALONE CHECKLIST
+   STANDALONE CHECKLIST (Checklist tab)
 ============================================================ */
-let currentSetupId = null;
-function renderSetupPicker(){
-  const el = document.getElementById('setupPicker');
-  el.innerHTML = SETUP_ORDER.map(id=>{
-    const s = SETUPS[id];
-    const state = standaloneChecklistState[id] || (standaloneChecklistState[id]={});
-    const done = stepsDoneCount(s.steps, state);
-    return `<button type="button" class="setup-card accent-${s.accent} ${currentSetupId===id?'active':''}" data-setup="${id}">
-        <div class="setup-card-top"><span class="setup-tag en">${s.tag}</span>${done>0?`<span class="setup-progress-pill en">${done}/${s.steps.length}</span>`:''}</div>
-        <div class="setup-card-title">${s.label}</div>
-        <div class="setup-card-desc">${s.desc}</div>
-      </button>`;
-  }).join('');
-  el.querySelectorAll('.setup-card').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ currentSetupId = btn.dataset.setup; renderStandaloneChecklist(); });
-  });
-}
 function renderStandaloneChecklist(){
-  renderSetupPicker();
-  const body = document.getElementById('checklistBody');
-  if(!currentSetupId){ body.classList.add('hidden'); return; }
-  body.classList.remove('hidden');
-  const setup = SETUPS[currentSetupId];
-  const state = standaloneChecklistState[currentSetupId] || (standaloneChecklistState[currentSetupId]={});
-  document.getElementById('clSetupTitle').textContent = setup.label;
   const el = document.getElementById('standaloneChecklist');
-  el.innerHTML = renderChecklistBlocks(setup.steps, state, 'standalone:'+currentSetupId);
-  wireChecklist(el, setup.steps, state, renderStandaloneChecklist);
-  const done = stepsDoneCount(setup.steps, state);
-  document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
-  document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
+  if(!el) return;
+  el.innerHTML = renderChecklistBlocks(CHECKLIST_STEPS, standaloneChecklistState, 'standalone');
+  wireChecklist(el, CHECKLIST_STEPS, standaloneChecklistState, renderStandaloneChecklist);
+  const done = stepsDoneCount(CHECKLIST_STEPS, standaloneChecklistState);
+  document.getElementById('clProgressText').textContent = `${done} از ${CHECKLIST_STEPS.length} مرحله`;
+  document.getElementById('clProgressFill').style.width = (done/CHECKLIST_STEPS.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId=null; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
-  if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
+  standaloneChecklistState = {};
   renderStandaloneChecklist();
 });
 document.getElementById('clGoJournalBtn').addEventListener('click', ()=>{
-  if(!currentSetupId) return;
-  const id = currentSetupId, state = standaloneChecklistState[id];
+  const state = { ...standaloneChecklistState };
   goToView('journal');
   resetForm();
   document.getElementById('tradeFormPanel').classList.remove('hidden');
-  buildFormChecklist(id, state);
+  buildFormChecklist(state);
 });
 
 /* ============================================================
@@ -1723,13 +1783,11 @@ const CSV_COLS = [
   ['result','result'], ['r','rr'], ['ideal_r','idealRR'], ['could_be_profit','couldBeProfitOrBE'],
   ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
   ['commission','__commission'], ['net_pl','__net'],
-  ['setup','__setup'],
   ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'],
-  ['crt','cl.crt'], ['box','cl.box'],
-  ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
-  ['bb_cisd','cl.bb_cisd'],
-  ['leg_strong','cl.leg_strong'], ['leg_fvg','cl.leg_fvg'], ['m15_cisd','cl.m15_cisd'], ['ifvg','cl.ifvg'],
-  ['follow_through','cl.followThrough'], ['stop_raid','cl.sr'], ['break_ob','cl.breakob'],
+  ['with_crtbox','cl.with_crtbox'], ['without_crtbox','cl.without_crtbox'],
+  ['cisd','cl.cisd'], ['mss','cl.mss'],
+  ['ifvg','cl.ifvg'], ['chain_cisd','cl.chain_cisd'],
+  ['pullback_cisd','cl.pullback_cisd'], ['break_ob','cl.breakob'],
   ['entry_reason','entryReason'], ['exit_reason','exitReason'], ['notes','notes'],
   ['chart_15m','__l15'], ['chart_1m','__l1'], ['created_at','createdAt']
 ];
@@ -1744,8 +1802,7 @@ function tradeToCsvRow(t){
   return CSV_COLS.map(([,key])=>{
     if(key==='__commission') return calcCommission(t).toFixed(2);
     if(key==='__net') return calcNet(t).toFixed(2);
-    if(key==='__cl'){ const st=getSetup(t.setupId); return stepsDoneCount(st.steps,cl)+'/'+st.steps.length; }
-    if(key==='__setup') return getSetup(t.setupId).label;
+    if(key==='__cl') return stepsDoneCount(CHECKLIST_STEPS,cl)+'/'+CHECKLIST_STEPS.length;
     if(key==='__l15') return (t.links&&t.links['15'])||'';
     if(key==='__l1') return (t.links&&t.links['1'])||'';
     if(key.startsWith('cl.')) return !!cl[key.slice(3)];
@@ -1803,10 +1860,10 @@ function parseCsvTrades(text){
       entryReason: g('entry_reason'), exitReason: g('exit_reason'), notes: g('notes'),
       checklist: {
         bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'),
-        crt:bool('crt'), box:bool('box'),
+        with_crtbox:bool('with_crtbox'), without_crtbox:bool('without_crtbox'),
         cisd:bool('cisd'), mss:bool('mss'),
-        ob50:bool('ob50'), bb_cisd:bool('bb_cisd'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
-        breakob:bool('break_ob')
+        ifvg:bool('ifvg'), chain_cisd:bool('chain_cisd'),
+        pullback_cisd:bool('pullback_cisd'), breakob:bool('break_ob')
       },
       links: { '15': g('chart_15m'), '1': g('chart_1m') },
       createdAt: Number(g('created_at')) || 0
@@ -2214,7 +2271,7 @@ document.getElementById('themeSwitch').addEventListener('click', e=>{
 document.addEventListener('keydown', e=>{
   if(e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA' || e.target.tagName==='SELECT') return;
   if(document.getElementById('modalBack').classList.contains('on')) return;
-  const views = ['dashboard','journal','calendar','checklist','guide','account'];
+  const views = ['dashboard','journal','calendar','checklist','roadmap','account'];
   if(e.key>='1' && e.key<='6'){ e.preventDefault(); goToView(views[Number(e.key)-1]); return; }
   if(e.key==='n' && !e.metaKey && !e.ctrlKey){
     e.preventDefault(); goToView('journal');
