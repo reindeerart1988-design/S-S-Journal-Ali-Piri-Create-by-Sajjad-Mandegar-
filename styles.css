@@ -696,30 +696,9 @@ html[data-theme="light"] .badge.loss,
 html[data-theme="light"] .cl-setup-badge,
 html[data-theme="light"] .setup-tag{ color:#ffffff; }
 
-/* ---------- Desktop: sidebar becomes a horizontal top bar ---------- */
-@media (min-width:821px){
-  .shell{ flex-direction:column; align-items:stretch; }
-  .sidebar{
-    position:sticky; top:var(--kzh); z-index:55; width:100%; height:auto;
-    flex-direction:row; align-items:center; gap:20px;
-    padding:9px clamp(14px,3vw,28px); border-inline-end:none; border-bottom:1px solid var(--line);
-    background:var(--panel); overflow-x:auto; scrollbar-width:none;
-  }
-  .sidebar::-webkit-scrollbar{ display:none; }
-  .brand{ padding:0; flex:0 0 auto; }
-  .side-nav{ flex-direction:row; flex:1; gap:2px; overflow-x:auto; scrollbar-width:none; min-width:0; }
-  .side-nav::-webkit-scrollbar{ display:none; }
-  .tab-btn{
-    flex:0 0 auto; width:auto; flex-direction:row; text-align:center;
-    border-radius:10px; margin-inline-start:0; padding:9px 14px 9px 14px;
-  }
-  .tab-btn:hover{ background:rgba(255,255,255,.03); }
-  .sidebar-profile{ display:flex; flex:0 0 auto; width:auto; margin-inline-start:auto; margin-bottom:0; }
-}
-@media (min-width:821px) and (max-width:1160px){
-  .sidebar-profile-text{ display:none; }
-  .sidebar-profile{ padding:8px; }
-}
+/* ---------- Desktop: sidebar stays a vertical bar pinned to the right (RTL) ---------- */
+/* (Intentionally left blank: the base .sidebar / .side-nav rules above already
+   render a vertical, right-aligned sidebar on desktop widths >= 821px.) */
 
 @media (prefers-reduced-motion:reduce){
   .nav-pill, .val-pop, .cmdk-box, .trade-card{ animation:none !important; transition:none !important; }
