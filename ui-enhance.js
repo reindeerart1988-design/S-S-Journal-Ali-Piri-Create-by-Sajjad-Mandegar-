@@ -16,8 +16,10 @@
   ready(function(){
     injectBgMesh();
     initNavPill();
+    initSlidingPills();
     initCommandPalette();
     watchDashboard();
+    watchEquity();
     watchCalendar();
   });
 
@@ -60,7 +62,51 @@
     setTimeout(place, 60);
   }
 
-  /* ---------------- Command palette ---------------- */
+  /* ---------------- Sliding pills for every segmented control ---------------- */
+  function toneColor(btn){
+    var tone = btn.dataset.tone;
+    if(tone === 'red') return { bg:'var(--red)', shadow:'0 6px 16px -8px var(--red)' };
+    if(tone === 'grey') return { bg:'var(--grey-btn)', shadow:'none' };
+    return { bg:'var(--emerald)', shadow:'0 6px 16px -8px var(--emerald)' };
+  }
+
+  function initSlidingPills(){
+    var containers = document.querySelectorAll('.seg, #themeSwitch');
+    var placers = [];
+
+    containers.forEach(function(container){
+      var pill = document.createElement('div');
+      pill.className = 'seg-pill';
+      container.insertBefore(pill, container.firstChild);
+
+      function place(){
+        var active = container.querySelector(':scope > button.on');
+        if(!active){ pill.classList.remove('on'); return; }
+        var cRect = container.getBoundingClientRect();
+        var r = active.getBoundingClientRect();
+        var tone = toneColor(active);
+        pill.style.left = (r.left - cRect.left) + 'px';
+        pill.style.top = (r.top - cRect.top) + 'px';
+        pill.style.width = r.width + 'px';
+        pill.style.height = r.height + 'px';
+        pill.style.background = tone.bg;
+        pill.style.boxShadow = tone.shadow;
+        pill.classList.add('on');
+      }
+
+      container.addEventListener('click', function(){ requestAnimationFrame(place); });
+      var mo = new MutationObserver(place);
+      container.querySelectorAll('button').forEach(function(b){
+        mo.observe(b, { attributes:true, attributeFilter:['class'] });
+      });
+      placers.push(place);
+      setTimeout(place, 60);
+    });
+
+    window.addEventListener('resize', function(){ placers.forEach(function(p){ p(); }); });
+  }
+
+
   function initCommandPalette(){
     var trigger = document.getElementById('cmdkTrigger');
     var tabs = document.querySelectorAll('#tabs .tab-btn');
@@ -154,7 +200,32 @@
     });
   }
 
-  /* ---------------- Dashboard: hero PnL + value pop ---------------- */
+  /* ---------------- Dashboard: hero PnL count-up + value pop ---------------- */
+  function fmtUSDLike(v){ return (v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-US',{maximumFractionDigits:2}); }
+
+  function animateHeroValue(valEl){
+    var mainTextNode = null;
+    for(var i=0;i<valEl.childNodes.length;i++){
+      if(valEl.childNodes[i].nodeType === 3){ mainTextNode = valEl.childNodes[i]; break; }
+    }
+    if(!mainTextNode) return;
+    var targetStr = mainTextNode.nodeValue;
+    var m = targetStr.match(/^(-?)\$([\d,]+(?:\.\d+)?)$/);
+    if(!m) return;
+    var targetNum = (m[1] === '-' ? -1 : 1) * parseFloat(m[2].replace(/,/g, ''));
+    var startNum = valEl.dataset.prevNum !== undefined ? parseFloat(valEl.dataset.prevNum) : 0;
+    var duration = 650, t0 = null;
+    function frame(now){
+      if(t0 === null) t0 = now;
+      var p = Math.min(1, (now - t0) / duration);
+      var eased = 1 - Math.pow(1 - p, 3);
+      mainTextNode.nodeValue = fmtUSDLike(startNum + (targetNum - startNum) * eased);
+      if(p < 1) requestAnimationFrame(frame);
+      else { mainTextNode.nodeValue = targetStr; valEl.dataset.prevNum = String(targetNum); }
+    }
+    requestAnimationFrame(frame);
+  }
+
   function watchDashboard(){
     var row = document.getElementById('pnlStatsRow');
     if(!row) return;
@@ -170,7 +241,7 @@
       var valEl = hero.querySelector('.val');
       if(valEl && valEl.dataset.pop !== valEl.textContent){
         valEl.dataset.pop = valEl.textContent;
-        valEl.classList.remove('val-pop'); void valEl.offsetWidth; valEl.classList.add('val-pop');
+        animateHeroValue(valEl);
       }
     }
 
@@ -183,7 +254,25 @@
     });
   }
 
-  /* ---------------- Calendar heat intensity ---------------- */
+  /* ---------------- Equity chart draw-in ---------------- */
+  function watchEquity(){
+    var wrap = document.getElementById('equityWrap');
+    if(!wrap) return;
+    var mo = new MutationObserver(function(){
+      var line = wrap.querySelector('.eq-line');
+      if(!line) return;
+      try{
+        var len = line.getTotalLength();
+        line.style.setProperty('--eq-len', len);
+        line.style.strokeDasharray = len;
+        line.style.strokeDashoffset = len;
+        line.classList.remove('draw'); void line.offsetWidth; line.classList.add('draw');
+      }catch(e){ /* path not ready yet */ }
+    });
+    mo.observe(wrap, { childList:true, subtree:true });
+  }
+
+
   function watchCalendar(){
     var grid = document.getElementById('calGrid');
     if(!grid) return;
