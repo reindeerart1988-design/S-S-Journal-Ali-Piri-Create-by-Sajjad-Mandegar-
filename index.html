@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=10">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -132,7 +132,7 @@
       <button class="tab-btn" data-view="journal"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M9 12h6M9 16h6"/></svg>ژورنال</button>
       <button class="tab-btn" data-view="calendar"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>کلندر PnL</button>
       <button class="tab-btn" data-view="checklist"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m4 8 2 2 4-4M4 16l2 2 4-4M13 8h7M13 16h7"/></svg>چک‌لیست</button>
-      <button class="tab-btn" data-view="roadmap"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M9 7h8M9 11h6"/></svg>Roadmap</button>
+      <button class="tab-btn" data-view="roadmap"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M9 7h8M9 11h6"/></svg><bdi dir="ltr">Roadmap</bdi></button>
       <button class="tab-btn" data-view="account"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>حساب</button>
     </nav>
   </aside>
@@ -143,7 +143,7 @@
 
   <!-- ================= DASHBOARD ================= -->
   <section class="view active" id="view-dashboard">
-    <h1 class="page-title">Dashboard</h1>
+    <h1 class="page-title en">Performance</h1>
     <p class="page-sub">عملکرد کلی حساب</p>
 
     <div class="panel pnl-panel">
@@ -158,7 +158,7 @@
         </div>
       </div>
 
-      <div class="pnl-stats-row" id="pnlStatsRow"></div>
+      <div class="perf-controls"><div class="seg en" id="equityGranularity" role="group" aria-label="تجمیع نمودار"><button type="button" class="on" data-grain="all" aria-pressed="true">All</button><button type="button" data-grain="day" aria-pressed="false">Day</button><button type="button" data-grain="hour" aria-pressed="false">1 Hour</button><button type="button" data-grain="quarter" aria-pressed="false">15 Min</button></div><label>آستانه سربه‌سر ($) <input type="number" min="0" step="0.01" value="0" id="beThreshold" aria-label="آستانه سربه‌سر به دلار"></label></div><div class="pnl-stats-row" id="pnlStatsRow"></div>
 
       <div id="equityWrap"></div>
 
@@ -175,27 +175,7 @@
       <div class="wl-grid" id="wlGrid"></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-head"><h3 class="en">Performance by side</h3></div>
-      <div class="perf-side-grid" id="perfSideGrid"></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head"><h3 class="en">Performance by session</h3></div>
-      <div class="perf-session-grid" id="perfSessionGrid"></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head"><h3 class="en">Performance by day</h3></div>
-      <div class="perf-day-chart" id="perfDayChart"></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head"><h3 class="en">Average trade frequency</h3></div>
-      <div class="freq-grid" id="freqGrid"></div>
-    </div>
-
-    <div class="stat-section-label">عملکرد بر حسب R</div>
+    <div id="performanceExtra"></div><div class="stat-section-label">عملکرد بر حسب R</div>
     <div class="stat-grid" id="statGridPerf"></div>
 
     <div class="stat-section-label">حساب</div>
@@ -283,13 +263,14 @@
 
         <div class="field" style="margin-bottom:12px;"><label id="lbl-segKillzone">کیل‌زون</label>
           <div class="seg" id="segKillzone" role="group" aria-labelledby="lbl-segKillzone">
-            <button type="button" data-val="NY Session" aria-pressed="false">NY Session</button>
-            <button type="button" data-val="London" aria-pressed="false">London</button>
+            <button type="button" data-val="NY AM" aria-pressed="false">NY AM · 08:30–11</button>
+            <button type="button" data-val="NY PM" aria-pressed="false">NY PM · 11–15</button>
             <button type="button" data-val="Out of Killzone" data-tone="grey" aria-pressed="false">Out of KZ</button>
           </div>
         </div>
 
-        <div class="form-section-label">Checklist</div>
+        <div class="form-grid-2"><div class="field"><label for="f-entryTime">ساعت ورود به وقت نیویورک</label><input type="time" id="f-entryTime" class="en"></div><div class="field"><label for="f-duration">مدت معامله (دقیقه)</label><input type="number" min="0" step="0.1" id="f-duration" placeholder="اختیاری"></div></div><div class="form-section-label">Checklist</div>
+        <div class="chips" id="formSetupSwitch" style="margin-bottom:10px;"></div>
         <div id="formChecklist"></div>
 
         <div class="form-grid" style="margin-top:14px;">
@@ -371,10 +352,16 @@
   <!-- ================= CHECKLIST ================= -->
   <section class="view" id="view-checklist">
     <h1 class="page-title">Pre-Trade Checklist</h1>
-    <p class="page-sub">مراحل چک‌لیست ورود را یکی‌یکی تأیید کن</p>
+    <p class="page-sub" id="clPageSub">ابتدا ستاپ معامله را انتخاب کن، بعد مراحلش را تأیید کن</p>
 
-    <div class="panel checklist-panel" id="checklistBody">
+    <div class="setup-picker" id="setupPicker"></div>
+
+    <div class="panel checklist-panel hidden" id="checklistBody">
       <div class="panel-head">
+        <h3 id="clSetupTitle">—</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="clChangeSetupBtn">تغییر ستاپ</button>
+      </div>
+      <div class="panel-head" style="margin-top:-6px;">
         <h3 id="clProgressText" style="font-size:11.5px; color:var(--muted); font-weight:500;">۰ از ۰ مرحله</h3>
         <span class="hint en">DISCIPLINE = FREEDOM</span>
       </div>
@@ -387,69 +374,18 @@
     </div>
   </section>
 
-  <!-- ================= ROADMAP ================= -->
-  <section class="view" id="view-roadmap">
-    <h1 class="page-title">Roadmap</h1>
-    <p class="page-sub">راهنمای استراتژی — منطق دو کیل‌زون و قاعدهٔ اصلی ورود</p>
-
-    <div class="panel guide-panel">
-      <h3 style="margin-bottom:10px;">دو کیل‌زون معاملاتی</h3>
-      <p class="guide-text">
-        همهٔ معاملات فقط در یکی از این دو بازهٔ زمانی نیویورک بررسی می‌شوند:
-      </p>
-      <ol class="guide-list">
-        <li><span class="en" style="direction:ltr; display:inline-block;">8:30 – 11:00 NY</span> — کیل‌زون صبح، اولویت با <span class="en">FVG</span></li>
-        <li><span class="en" style="direction:ltr; display:inline-block;">11:00 – 15:00 NY</span> — کیل‌زون بعدازظهر، اولویت با سوئینگ‌ها (<span class="en">BSL</span> / <span class="en">SSL</span>)</li>
-      </ol>
-    </div>
-
-    <div class="panel guide-panel">
-      <h3 style="margin-bottom:10px;">قاعدهٔ اصلی (در هر دو کیل‌زون)</h3>
-      <p class="guide-text">
-        وقتی قیمت با یک لگ به سمت یک سطح لیکوییدیتی (<span class="en">BSL</span> یا <span class="en">SSL</span>) حرکت می‌کند، اول بررسی می‌کنیم که آیا روی مسیر آن لگ یک <span class="en">FVG</span> ساخته شده یا نه:
-      </p>
-      <ol class="guide-list">
-        <li>اگر لگ همراه با <span class="en">FVG</span> بوده باشد → ریورسال روی همان سطح <b>کنسل</b> می‌شود؛ حالا خود <span class="en">FVG</span> نقطهٔ مهم ماست و طبق چک‌لیست (<span class="en">iFVG</span> → <span class="en">CISD</span>) روی آن ورود می‌گیریم.</li>
-        <li>اگر لگ بدون <span class="en">FVG</span> بوده باشد → همان سطح <span class="en">BSL</span>/<span class="en">SSL</span> معتبر می‌ماند و مستقیم دنبال ریورسال روی آن هستیم.</li>
-      </ol>
-    </div>
-
-    <div class="panel guide-panel">
-      <h3 style="margin-bottom:10px;"><span class="en" style="direction:ltr; display:inline-block;">8:30 – 11:00</span> — اولویت با <span class="en">FVG</span></h3>
-      <p class="guide-text">
-        در این بازه فقط <span class="en">FVG</span> رسم می‌شود؛ اگر <span class="en">FVG</span>ای نبود، همان‌جا <span class="en">BSL</span>/<span class="en">SSL</span> رسم می‌کنیم.
-      </p>
-      <p class="guide-text">
-        هر سوئینگی (<span class="en">BSL</span>/<span class="en">SSL</span>) که خودِ قیمت در همین بازه ساخته باشد، کلاً بی‌اهمیت است و اصلاً رویش حساب نمی‌کنیم.
-      </p>
-      <p class="guide-text">
-        همیشه فقط <b>آخرین <span class="en">FVG</span></b> این بازه برای ما مهم است، نه همهٔ <span class="en">FVG</span>هایی که تشکیل شده‌اند.
-      </p>
-      <p class="guide-text guide-callout">
-        این آخرین <span class="en">FVG</span> معتبر می‌ماند تا وقتی قیمت به آن برگردد و ازش استفاده کنیم — این برگشت ممکن است همان داخل همین کیل‌زون اتفاق بیفتد، یا بماند تا کیل‌زون بعدازظهر. یعنی اعتبارش از بین نمی‌رود تا مصرف شود، نه اینکه حتماً باید به کیل‌زون بعد منتقل شود.
-      </p>
-    </div>
-
-    <div class="panel guide-panel">
-      <h3 style="margin-bottom:10px;"><span class="en" style="direction:ltr; display:inline-block;">11:00 – 15:00</span> — اولویت با سوئینگ‌ها</h3>
-      <p class="guide-text">
-        از اینجا به بعد سوئینگ‌ها (<span class="en">BSL</span>/<span class="en">SSL</span>) اهمیت پیدا می‌کنند. همان قاعدهٔ اصلی دوباره اجرا می‌شود: اگر قیمت با <span class="en">FVG</span> به سوئینگ رسیده باشد، ریورسال کنسل است؛ اگر بدون <span class="en">FVG</span> رسیده باشد، دنبال ریورسال روی آن هستیم.
-      </p>
-      <p class="guide-text">
-        <span class="en">FVG</span> باقی‌ماندهٔ معتبر از کیل‌زون صبح هم، اگر هنوز مصرف نشده باشد، در همین بازه قابل معامله است.
-      </p>
-    </div>
-
-    <div class="panel guide-panel">
-      <h3 style="margin-bottom:10px;">نشانهٔ تغییر روند</h3>
-      <p class="guide-text">
-        گاهی یک لگ قوی همراه با چند <span class="en">FVG</span> به یک <span class="en">BSL</span>/<span class="en">SSL</span> می‌رسد؛ چون <span class="en">FVG</span> داشته، طبق قاعده ریورسال کنسل است. اما اگر بعد از برخورد به آن سطح، قیمت برگردد و <b>آخرین <span class="en">FVG</span></b> را پر کند و آن را به <span class="en">iFVG</span> تبدیل کند — این نشانهٔ تغییر روند است و دوباره وارد بازی می‌شویم.
-      </p>
-    </div>
-  </section>
-
-
-  <!-- ================= ACCOUNT ================= -->
+  <!-- ================= AGGRESSIVE ENTRY GUIDE ================= -->
+  <section class="view roadmap" id="view-roadmap" dir="rtl">
+<h1 class="page-title"><bdi dir="ltr">Roadmap</bdi></h1><p class="page-sub">راهنمای استراتژی • تمام ساعت‌ها به وقت نیویورک</p>
+<div class="road-grid">
+<article class="panel"><span class="road-kicker">کیل‌زون اول</span><h2><bdi dir="ltr">08:30 – 11:00</bdi></h2><h3>تمرکز روی آخرین <bdi dir="ltr">FVG</bdi></h3><ul><li>ابتدا فقط <bdi dir="ltr">FVG</bdi> را رسم می‌کنیم. در حرکت مورد بررسی، آخرین <bdi dir="ltr">FVG</bdi> ملاک است.</li><li>اگر <bdi dir="ltr">FVG</bdi> نداشتیم، <bdi dir="ltr">BSL</bdi> و <bdi dir="ltr">SSL</bdi> را بررسی می‌کنیم.</li><li><bdi dir="ltr">BSL</bdi> و <bdi dir="ltr">SSL</bdi> ساخته‌شده داخل این بازه اعتبار ندارند؛ آن‌ها را رسم نمی‌کنیم.</li><li><bdi dir="ltr">FVG</bdi>های این بازه در کیل‌زون بعدی هم با چک‌لیست قابل بررسی هستند.</li></ul></article>
+<article class="panel"><span class="road-kicker">کیل‌زون دوم</span><h2><bdi dir="ltr">11:00 – 15:00</bdi></h2><h3>تمرکز روی سوئینگ‌ها</h3><ul><li>سوئینگ یعنی <bdi dir="ltr">BSL</bdi> و <bdi dir="ltr">SSL</bdi>.</li><li>مهم است حرکتِ رسیدن قیمت به سطح، <bdi dir="ltr">FVG</bdi> داشته باشد یا نه.</li><li>با <bdi dir="ltr">FVG</bdi>: ریورسال روی آن <bdi dir="ltr">BSL</bdi> یا <bdi dir="ltr">SSL</bdi> لغو می‌شود.</li><li>بدون <bdi dir="ltr">FVG</bdi>: ریورسال با تأییدهای چک‌لیست قابل بررسی است.</li></ul></article>
+</div>
+<article class="panel"><h2>قانون مشترک هر دو کیل‌زون</h2><div class="road-flow"><div class="road-node">قیمت به <bdi dir="ltr">BSL</bdi> یا <bdi dir="ltr">SSL</bdi> می‌رسد</div><div class="road-arrow" aria-hidden="true">↓</div><div class="road-node">آیا حرکتِ رسیدن به سطح <bdi dir="ltr">FVG</bdi> دارد؟</div><div class="road-grid"><div class="road-branch"><b>بله</b><p>ریورسال روی این سطح لغو می‌شود.</p><p>تمرکز روی آخرین <bdi dir="ltr">FVG</bdi> و بررسی ورود با چک‌لیست.</p></div><div class="road-branch"><b>خیر</b><p>ریورسال قابل بررسی است.</p><p>برای ورود، تأییدهای چک‌لیست لازم است.</p></div></div></div></article>
+<article class="panel"><h2>برگشت به <bdi dir="ltr">FVG</bdi> صبح در کیل‌زون دوم</h2><p>اگر قیمت در بازه دوم به <bdi dir="ltr">FVG</bdi> ساخته‌شده بین ۸:۳۰ تا ۱۱ برسد و حرکتِ رسیدن به آن هیچ <bdi dir="ltr">FVG</bdi> نداشته باشد، ریورسال را بررسی می‌کنیم.</p><p>سپس در تایم یک دقیقه، ابتدا <bdi dir="ltr">iFVG</bdi> و بعد <bdi dir="ltr">CISD</bdi> لازم است. بعد از تأیید، مراحل پولبک به <bdi dir="ltr">CISD</bdi> و شکست <bdi dir="ltr">OB</bdi> بررسی می‌شوند.</p></article>
+<article class="panel"><h2>تغییر وضعیت آخرین <bdi dir="ltr">FVG</bdi></h2><p>اگر یک حرکت قوی با چند <bdi dir="ltr">FVG</bdi> به <bdi dir="ltr">BSL</bdi> یا <bdi dir="ltr">SSL</bdi> برسد، در ابتدا دنبال ریورسال روی آن سطح نیستیم. اما اگر پس از برخورد، آخرین <bdi dir="ltr">FVG</bdi> به <bdi dir="ltr">iFVG</bdi> تبدیل شود، در منطق این استراتژی نشانه تغییر جهت است و شرایط دوباره بررسی می‌شود.</p><p class="road-note">ملاک، تبدیل به <bdi dir="ltr">iFVG</bdi> است؛ صرفِ پرشدن <bdi dir="ltr">FVG</bdi> کافی نیست.</p></article>
+<article class="panel"><h2>مسیر ورود در یک دقیقه</h2><ol class="road-steps"><li>تشکیل <bdi dir="ltr">iFVG</bdi></li><li>تأیید <bdi dir="ltr">CISD</bdi> پس از <bdi dir="ltr">iFVG</bdi></li><li>پولبک به <bdi dir="ltr">CISD</bdi></li><li>شکست <bdi dir="ltr">OB</bdi></li></ol><p class="road-note">تا <bdi dir="ltr">iFVG</bdi> انتخاب نشده باشد، دکمه <bdi dir="ltr">CISD</bdi> در مرحله چهارم غیرفعال است.</p></article>
+</section>
   <section class="view" id="view-account">
     <h1 class="page-title">Account</h1>
     <p class="page-sub">موجودی، کمیسیون و پشتیبان‌گیری</p>
@@ -535,8 +471,8 @@
 <div class="toast" id="toast"></div>
 
 
-<script src="app.js?v=6"></script>
-<script src="ui-enhance.js?v=1"></script>
+<script src="app.js?v=10"></script>
+<script src="ui-enhance.js?v=10"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
