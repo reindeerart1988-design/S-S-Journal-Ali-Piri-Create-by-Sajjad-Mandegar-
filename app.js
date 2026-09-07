@@ -273,50 +273,39 @@ async function handleLogout() {
 /* ============================================================
    DATA
 ============================================================ */
-/* ============================================================
-   CHECKLIST — one unified 6-step flow (no more separate "setups").
-   Step 4 is a dependency chain: the CISD chip only unlocks once
-   iFVG is checked (see `dependsOn` + wireChecklist()/renderChecklistBlocks()).
-============================================================ */
-const CHECKLIST_STEPS = [
-  { n:'1', title:'Liquidity / POI', tf:'15m',
-    items:[ {key:'bsl',label:'BSL',en:true}, {key:'ssl',label:'SSL',en:true}, {key:'fvg',label:'FVG',en:true}, {key:'ob',label:'Order Block',en:true} ],
-    help:'یک نقطهٔ نقدینگی (POI) روی تایم‌فریم ۱۵ دقیقه پیدا کن: یک <b>BSL</b> یا <b>SSL</b> گرفته‌نشده، یا یک <b>FVG</b>/<b>Order Block</b> که قیمت به آن واکنش نشان می‌دهد. این نقطه، محل احتمالی برگشت قیمت است.',
-    helpAlways:true },
-  { n:'2', title:'CRT / BOX', tf:'15m',
-    items:[ {key:'with_crtbox', label:'با CRT/BOX'}, {key:'without_crtbox', label:'بدون CRT/BOX'} ],
-    help:'مشخص کن که ساختار CRT/BOX روی این ستاپ شکل گرفته یا نه.' },
-  { n:'3', title:'Confirmation', tf:'1m',
-    items:[ {key:'cisd',label:'CISD',en:true}, {key:'mss',label:'MSS',en:true} ],
-    help:'<b>CISD</b> یا <b>MSS</b> روی تایم‌فریم ۱ دقیقه یعنی شکست ساختار قیمت بعد از گرفتن لیکوییدیتی — نشانهٔ برگشت واقعی قیمت و آماده شدن برای ورود.' },
-  { n:'4', title:'iFVG → CISD', tf:'1m', multi:true,
-    items:[ {key:'ifvg', label:'iFVG',en:true}, {key:'chain_cisd', label:'CISD',en:true, dependsOn:'ifvg'} ],
-    note:'تا وقتی iFVG تیک نخورده، CISD این مرحله غیرفعال می‌ماند.',
-    help:'اول دنبال یک <b>iFVG</b> می‌گردیم؛ فقط بعد از تأیید آن نوبت به <b>CISD</b> می‌رسد. این زنجیره، شرط اصلی ورود روی iFVG است.' },
-  { n:'5', title:'پولبک به CISD', tf:'1m',
-    items:[ {key:'pullback_cisd', label:'پولبک به CISD'} ],
-    help:'بعد از تشکیل CISD، منتظر پولبک قیمت به همان ناحیهٔ CISD می‌مانیم.' },
-  { n:'6', title:'شکست OB', tf:'1m',
-    items:[ {key:'breakob', label:'شکست OB'} ],
-    help:'ورود نهایی با شکسته شدن Order Block انجام می‌شود.' }
-];
+/* Shared first step for every setup: finding the liquidity POI on the 15m chart. */
+const STEP_POI = {n:'1', title:'Liquidity / POI', tf:'15m', items:['BSL','SSL','FVG','OB'].map(label=>({key:label.toLowerCase(),label,en:true}))};
+const STEP_CRT_BOX = {n:'2',title:'CRT / BOX',tf:'15m',items:[{key:'withCrt',label:'با <bdi dir="ltr">CRT/BOX</bdi>'},{key:'withoutCrt',label:'بدون <bdi dir="ltr">CRT/BOX</bdi>'}]};
+const STEP_CONFIRMATION = {n:'3',title:'Confirmation',tf:'1m',items:[{key:'cisd',label:'CISD',en:true},{key:'mss',label:'MSS',en:true}]};
+const SETUPS = {standard:{id:'standard',label:'چک‌لیست استراتژی',tag:'NQ',accent:'blue',desc:'',steps:[
+ STEP_POI,STEP_CRT_BOX,STEP_CONFIRMATION,
+ {n:'4',title:'iFVG / CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
+ {n:'5',title:'پولبک',tf:'1m',items:[{key:'pullbackCisd',label:'پولبک به <bdi dir="ltr">CISD</bdi>'}]},
+ {n:'6',title:'شکست OB',tf:'1m',items:[{key:'breakob',label:'شکست <bdi dir="ltr">OB</bdi>'}]}
+]}};
+const SETUP_ORDER = ['standard'];
+function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 function stepDone(step, state){
   state = state || {};
-  if(step.multi) return step.items.every(it=>!!state[it.key]);
+  if(step.skipIfKey && state[step.skipIfKey]) return true;
+  if(step.type==='conditional'){
+    if(!state[step.followKey]) return true; /* no follow-through => this step isn't required */
+    return !!state[step.condKey];
+  }
+  if(step.multi) return step.items.every(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
   return step.items.some(it=>!!state[it.key]);
 }
 function stepsDoneCount(steps, state){ return steps.filter(s=>stepDone(s,state)).length; }
 
 /* Killzone windows — defined and displayed in NEW YORK local time (DST handled automatically).
-   The NY session is one continuous window (08:30–15:30 NY): we're at the chart
-   for the whole thing and take any valid setup, not two separate sub-windows. */
+   Two non-overlapping windows: 08:30–11:00 and 11:00–15:00. */
 const KILLZONES = [
-  { label:'NY Session', h1:8, m1:30, h2:15, m2:30 },
-  { label:'London',     h1:2, m1:0,  h2:5,  m2:0 }
+  { label:'NY AM', h1:8, m1:30, h2:11, m2:0 },
+  { label:'NY PM', h1:11, m1:0, h2:15, m2:0 }
 ];
 const NY_TZ = 'America/New_York';
-const KZ_OPTIONS = ['NY Session','London','Out of Killzone'];
+const KZ_OPTIONS = ['NY AM','NY PM','Out of Killzone','NY Session','London'];
 const SYMBOL = 'NQ';
 
 const ICONS = { chevron:'<path d="m6 9 6 6 6-6"/>' };
@@ -325,7 +314,7 @@ const ICONS = { chevron:'<path d="m6 9 6 6 6-6"/>' };
    STORAGE
 ============================================================ */
 const DEFAULT_SETTINGS = { initialBalance:10000, commissionPerLot:5 };
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 /* Every string that comes from the user (or from an imported file) is escaped
    before it is ever put into innerHTML. */
@@ -390,7 +379,7 @@ function shiftISO(iso, days, months){
 let trades = [];
 let settings = { initialBalance:10000, commissionPerLot:5 };
 let editingTradeId = null;
-let standaloneChecklistState = {};
+let standaloneChecklistState = { standard:{} };
 let formChecklistState = {};
 
 /* date -> trades[] index, rebuilt whenever the list changes. The calendar used
@@ -427,25 +416,29 @@ function migrateTrade(t){
   if(m.result==='be')   m.rr = 0;
   m.v = SCHEMA_VERSION;
   if(!m.createdAt) m.createdAt = Date.parse((m.date||'1970-01-01')+'T12:00:00') || 0;
-  if(m.killzone==='NY AM' || m.killzone==='NY PM') m.killzone = 'NY Session';
+
   if(!KZ_OPTIONS.includes(m.killzone)) m.killzone = 'Out of Killzone';
   if(!m.trend) m.trend = m.direction==='sell' ? 'bearish' : 'bullish';
+  if(m.setupId && !SETUPS[m.setupId]) m.legacySetupId=m.legacySetupId||m.setupId;
+  if(!m.setupId || !SETUPS[m.setupId]) m.setupId = 'standard';
   const c = m.checklist || {};
-  /* "with/without CRT-BOX" replaces the old separate crt+box checkboxes:
-     if either used to be checked, treat that trade as "با CRT/BOX". */
-  const hadCrtBox = !!(c.crt || c.box || c.with_crtbox);
   m.checklist = {
+    ...c, withCrt:!c.withoutCrt && !!(c.withCrt || c.crt || c.box || c.crt_box), withoutCrt:!!c.withoutCrt,
+    entryCisd:!!(c.ifvg && c.entryCisd), pullbackCisd:!!c.pullbackCisd,
     bsl: !!(c.bsl || c.bsl_sweep), ssl: !!(c.ssl || c.ssl_sweep),
     fvg: !!(c.fvg || c.fvg_hit), ob: !!(c.ob || c.ob_hit),
-    with_crtbox: hadCrtBox, without_crtbox: !!c.without_crtbox && !hadCrtBox,
+    crt: !!(c.crt || c.crt_box), box: !!c.box,
     cisd: !!c.cisd, mss: !!c.mss,
-    ifvg: !!c.ifvg, chain_cisd: !!(c.chain_cisd && c.ifvg),
-    pullback_cisd: !!(c.pullback_cisd || c.ob50),
+    ob50: !!(c.ob50 || c.stopraid || c.price_50 || c.fibo_50),
+
+    leg_strong: !!c.leg_strong, leg_fvg: !!c.leg_fvg, m15_cisd: !!c.m15_cisd, ifvg: !!c.ifvg,
+    followThrough: !!c.followThrough,
+    sr: !!(c.sr || (c.followThrough && c.stopraid)),
     breakob: !!(c.breakob || c.ob_broken)
   };
   if(m.links){ m.links = { '15': m.links['15']||'', '1': m.links['1']||'' }; }
   else m.links = { '15':'', '1':'' };
-  delete m.rrPlanned; delete m.entryTime; delete m.exitTime; delete m.entryPoint; delete m.setupId;
+  delete m.rrPlanned;  delete m.entryPoint;
   return m;
 }
 
@@ -589,43 +582,79 @@ function helpPanel(step, ns){
   return `<div class="cl-help-panel ${on?'':'hidden'}" data-help-panel="${key}">${step.help}</div>`;
 }
 
+function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
   state = state || {};
   ns = ns || 'default';
   return steps.map(step=>{
-    const head = `
-      <div class="cl-head">
-        <span class="cl-n en">${step.n}</span>
-        <span class="cl-t">${step.title} <i class="en">${step.tf}</i></span>
-        ${helpBtn(step, ns)}
-      </div>`;
-    const body = `
-      <div class="chips">
-        ${step.items.map(it=>{
-          const locked = it.dependsOn && !state[it.dependsOn];
-          return `<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}" ${locked?'disabled':''}>${it.label}</button>`;
-        }).join('')}
-      </div>`;
+    let head, body, skipped = false;
+    if(step.type==='conditional'){
+      skipped = step.skipIfKey && !!state[step.skipIfKey];
+      head = `
+        <div class="cl-head">
+          <span class="cl-n en">${step.n}</span>
+          <span class="cl-t">${isolateLabel(step.title)} <i class="en">${step.tf}</i></span>
+          ${helpBtn(step, ns)}
+        </div>`;
+      if(skipped){
+        body = `<div class="chips"><span class="cl-skip">${step.skipLabel||'غیرضروری'}</span></div>`;
+      } else {
+        const ft = !!state[step.followKey];
+        const cond = !!state[step.condKey];
+        body = `
+        <div class="chips">
+          <button type="button" class="chip en ${ft?'on':''}" data-follow-key="${step.followKey}">${step.followLabel}</button>
+          <button type="button" class="chip en ${cond?'on':''}" data-cond-key="${step.condKey}" data-follow-key="${step.followKey}" ${ft?'':'disabled'}>${step.condLabel}</button>
+        </div>`;
+      }
+    } else {
+      head = `
+        <div class="cl-head">
+          <span class="cl-n en">${step.n}</span>
+          <span class="cl-t">${isolateLabel(step.title)} <i class="en">${step.tf}</i></span>
+          ${helpBtn(step, ns)}
+        </div>`;
+      body = `
+        <div class="chips">
+          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${it.requires&&!state[it.requires]?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
+        </div>`;
+    }
     let note = '';
     if(step.note) note += `<div class="cl-note">${step.note}</div>`;
-    const rowClass = stepDone(step,state) ? 'done' : '';
+    if(step.condNotes){
+      step.condNotes.forEach(cn=>{ if(state[cn.when]) note += `<div class="cl-note">${cn.text}</div>`; });
+    }
+    const rowClass = skipped ? 'skipped' : (stepDone(step,state) ? 'done' : '');
     return `<div class="cl-row ${rowClass}">${head}${body}${note}${helpPanel(step, ns)}</div>`;
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
-      if(chip.disabled) return;
       const key = chip.dataset.key;
       const isOn = !!state[key];
       if(chip.dataset.multi!=='1'){
         const step = steps.find(s=>s.n===chip.dataset.group);
         step.items.forEach(it=> state[it.key]=false);
       }
+      const item = steps.flatMap(s=>s.items||[]).find(it=>it.key===key);
+      if(item?.requires && !state[item.requires]) return;
       state[key] = !isOn;
-      if(isOn){
-        /* key was just turned OFF: also clear anything that depends on it */
-        steps.forEach(s=> s.items.forEach(it2=>{ if(it2.dependsOn===key) state[it2.key] = false; }));
+      if(key==='ifvg' && !state.ifvg) state.entryCisd=false;
+      after();
+    });
+  });
+  el.querySelectorAll('.chip[data-follow-key]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      if(chip.dataset.condKey){
+        state[chip.dataset.condKey] = !state[chip.dataset.condKey];
+      } else {
+        const fk = chip.dataset.followKey;
+        state[fk] = !state[fk];
+        if(!state[fk]){
+          const step = steps.find(s=>s.followKey===fk);
+          if(step) state[step.condKey] = false;
+        }
       }
       after();
     });
@@ -642,12 +671,30 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-function renderFormChecklist(){
-  const el = document.getElementById('formChecklist');
-  el.innerHTML = renderChecklistBlocks(CHECKLIST_STEPS, formChecklistState, 'form');
-  wireChecklist(el, CHECKLIST_STEPS, formChecklistState, renderFormChecklist);
+let formSetupId = 'standard';
+function renderFormSetupSwitch(){
+  const el = document.getElementById('formSetupSwitch');
+  if(!el) return;
+  el.innerHTML = SETUP_ORDER.map(id=>{
+    const s = SETUPS[id];
+    return `<button type="button" class="chip accent-${s.accent} ${formSetupId===id?'on':''}" data-form-setup="${id}">${s.label}</button>`;
+  }).join('');
+  el.querySelectorAll('[data-form-setup]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.formSetup;
+      if(id===formSetupId) return;
+      formSetupId = id; formChecklistState = {}; renderFormChecklist();
+    });
+  });
 }
-function buildFormChecklist(checked){ formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
+function renderFormChecklist(){
+  renderFormSetupSwitch();
+  const el = document.getElementById('formChecklist');
+  const steps = getSetup(formSetupId).steps;
+  el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
+  wireChecklist(el, steps, formChecklistState, renderFormChecklist);
+}
+function buildFormChecklist(setupId, checked){ formSetupId = SETUPS[setupId] ? setupId : 'standard'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
 
 function applyResultUI(){
   const res = getSeg('segResult');
@@ -686,6 +733,7 @@ document.getElementById('f-lot').addEventListener('input', updateFormCalcLine);
 document.getElementById('f-gross').addEventListener('input', updateFormCalcLine);
 
 function resetForm(){
+  document.getElementById('segKillzone').querySelectorAll('[data-legacy]').forEach(b=>b.remove());
   document.getElementById('tradeForm').reset();
   document.getElementById('f-date').value = todayNY();
   document.getElementById('f-symbol').value = SYMBOL;
@@ -695,7 +743,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist();
+  buildFormChecklist('standard');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -710,10 +758,15 @@ function openEditForm(t){
   setSeg('segTrend', t.trend||'bullish');
   setSeg('segDirection', t.direction||'buy');
   setSeg('segResult', t.result||'win');
+  const kzGroup=document.getElementById('segKillzone');
+  kzGroup.querySelectorAll('[data-legacy]').forEach(b=>b.remove());
+  if(t.killzone && !['NY AM','NY PM','Out of Killzone'].includes(t.killzone)){ const b=document.createElement('button');b.type='button';b.dataset.val=t.killzone;b.dataset.legacy='1';b.textContent=t.killzone;b.addEventListener('click',()=>setSeg('segKillzone',t.killzone));kzGroup.appendChild(b); }
   setSeg('segKillzone', t.killzone||'Out of Killzone');
   applyResultUI();
   document.getElementById('f-rr').value = t.result==='be' ? '' : Math.abs(Number(t.rr)||0);
   document.getElementById('f-idealrr').value = t.idealRR ?? '';
+  document.getElementById('f-entryTime').value=t.entryTime||'';
+  document.getElementById('f-duration').value=t.durationMinutes??'';
   setSeg('segCouldBe', t.couldBeProfitOrBE ? 'yes' : 'no');
   document.getElementById('f-lot').value = t.lotSize ?? '';
   document.getElementById('f-gross').value = t.grossPL ?? '';
@@ -722,7 +775,7 @@ function openEditForm(t){
   document.getElementById('f-notes').value = t.notes||'';
   document.getElementById('f-link15').value = (t.links&&t.links['15'])||'';
   document.getElementById('f-link1').value = (t.links&&t.links['1'])||'';
-  buildFormChecklist(t.checklist||{});
+  buildFormChecklist(t.setupId||'standard', t.checklist||{});
   updateFormCalcLine();
   const p=document.getElementById('tradeFormPanel');
   p.classList.remove('hidden');
@@ -755,7 +808,9 @@ document.getElementById('tradeForm').addEventListener('submit', async e=>{
     trend: getSeg('segTrend') || 'bullish',
     direction: getSeg('segDirection') || 'buy',
     result, rr,
-    idealRR: Number(document.getElementById('f-idealrr').value)||0,
+    idealRR: document.getElementById('f-idealrr').value===''?null:Number(document.getElementById('f-idealrr').value),
+    entryTime:document.getElementById('f-entryTime').value,
+    durationMinutes:document.getElementById('f-duration').value===''?null:Number(document.getElementById('f-duration').value),
     couldBeProfitOrBE: result==='loss' && getSeg('segCouldBe')==='yes',
     killzone: getSeg('segKillzone') || 'Out of Killzone',
     lotSize: Number(document.getElementById('f-lot').value)||0,
@@ -763,6 +818,7 @@ document.getElementById('tradeForm').addEventListener('submit', async e=>{
     entryReason: document.getElementById('f-entryReason').value,
     exitReason: document.getElementById('f-exitReason').value,
     notes: document.getElementById('f-notes').value,
+    setupId: formSetupId,
     checklist: { ...formChecklistState },
     links: {
       '15': document.getElementById('f-link15').value.trim(),
@@ -868,7 +924,14 @@ function renderTradeDetail(inner, id){
       <div class="detail-meta-item"><div class="k en">COMMISSION</div><div class="v en">${fmtUSD(commission)}</div></div>
       <div class="detail-meta-item"><div class="k en">NET</div><div class="v en" style="color:${net>=0?'var(--blue)':'var(--red)'}">${fmtUSD(net)}</div></div>
     </div>
-    <div class="detail-cl">${CHECKLIST_STEPS.map(step=>{
+    <div class="detail-cl"><span class="cl-setup-badge" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${getSetup(t.setupId).steps.map(step=>{
+      if(step.type==='conditional'){
+        const done = stepDone(step,t.checklist||{});
+        const ft = t.checklist && t.checklist[step.followKey];
+        const cond = t.checklist && t.checklist[step.condKey];
+        const label = ft ? (cond? `${step.title} (${step.condLabel} ✓)` : `${step.title} (${step.condLabel} —)`) : `${step.title} (بدون Follow Through)`;
+        return `<span class="${done?'done':''}">${done?'✓':'—'} ${step.n}. ${label}</span>`;
+      }
       const picked = step.items.filter(it=>t.checklist && t.checklist[it.key]);
       const done = picked.length>0;
       const label = step.items.length>1 && picked.length ? picked.map(p=>p.label).join(' + ') : step.title;
@@ -917,7 +980,7 @@ function computeStats(list){
   return { n, wins, losses, bes, totalR, avgR: n? totalR/n : 0, winRate: decided? wins/decided*100 : 0 };
 }
 function maxLosingStreak(list){
-  const sorted = [...list].sort((a,b)=> new Date(a.date)-new Date(b.date) || (a.createdAt||0)-(b.createdAt||0));
+  const sorted = [...list].sort((a,b)=> new Date(a.date)-new Date(b.date) || String(a.entryTime||'').localeCompare(String(b.entryTime||'')) || (a.createdAt||0)-(b.createdAt||0));
   let max=0, cur=0;
   sorted.forEach(t=>{ if(t.result==='loss'){ cur++; max=Math.max(max,cur); } else if(t.result==='win'){ cur=0; } });
   return max;
@@ -943,9 +1006,9 @@ function renderStatGrid(){
 }
 /* ---------- Profit & loss panel (new, matches reference screenshots) ---------- */
 let pnlRange = 'all';
-function effResult(t){ return t.result; }
+function effResult(t){ const threshold=Number(document.getElementById('beThreshold')?.value)||0;return threshold>0&&Math.abs(calcNet(t))<=threshold?'be':t.result; }
 function chronological(list){
-  return [...list].sort((a,b)=> new Date(a.date)-new Date(b.date) || (a.createdAt||0)-(b.createdAt||0));
+  return [...list].sort((a,b)=> new Date(a.date)-new Date(b.date) || String(a.entryTime||'').localeCompare(String(b.entryTime||'')) || (a.createdAt||0)-(b.createdAt||0));
 }
 function annotateWithBalance(list){
   const sorted = chronological(list);
@@ -994,7 +1057,7 @@ function fmtDateShort(d){
 
 function renderPnlStats(ann){
   const row = document.getElementById('pnlStatsRow');
-  if(!trades.length){ row.innerHTML = ''; return; }
+  if(!ann.length){ row.innerHTML = ''; return; }
   const totalNet = ann.reduce((s,a)=>s+a.net,0);
   const initial = Number(settings.initialBalance)||0;
   /* TOTAL PNL was range-filtered while ACCOUNT BALANCE was always all-time, so
@@ -1022,7 +1085,7 @@ function renderPnlStats(ann){
     </div>
     <div class="pnl-stat">
       <span class="lbl en">WIN RATE</span>
-      <span class="val en">${winRate.toFixed(2)}%</span>
+      <span class="val en">${decided?winRate.toFixed(2)+'%':'—'}</span>
     </div>
     <div class="pnl-stat">
       <span class="lbl en">TOTAL TRADES</span>
@@ -1168,7 +1231,7 @@ function renderRRMini(ann){
   const avgRR = rrs.reduce((s,v)=>s+v,0)/rrs.length;
   const maxRR = Math.max(...rrs);
 
-  const idealRRs = ann.map(a=> Math.max(Number(a.t.idealRR)||0, Number(a.t.rr)||0));
+  const idealRRs = ann.filter(a=>a.t.idealRR!=null && Number(a.t.idealRR)>0).map(a=>Number(a.t.idealRR));
   const idealAvg = idealRRs.reduce((s,v)=>s+v,0)/idealRRs.length;
   const idealMax = Math.max(...idealRRs);
 
@@ -1178,8 +1241,8 @@ function renderRRMini(ann){
 
   grid.innerHTML =
     rrMiniCard('Average RR','Max RR', avgRR.toFixed(2), maxRR.toFixed(2), rrs) +
-    rrMiniCard('Ideal Average RR','Max Ideal RR', idealAvg.toFixed(2), idealMax.toFixed(2), idealRRs) +
-    rrMiniCard('Could have profit/BE','Max Ideal RR', couldList.length, couldMaxIdeal.toFixed(2), couldIdealRRs.length?couldIdealRRs:[0]);
+    rrMiniCard('Ideal Average RR','Max Ideal RR', idealRRs.length?idealAvg.toFixed(2):'—', idealRRs.length?idealMax.toFixed(2):'—', idealRRs) +
+    rrMiniCard('Could have profit/BE','Max Ideal RR', couldList.length, couldIdealRRs.some(v=>v>0)?couldMaxIdeal.toFixed(2):'—', couldIdealRRs);
 }
 
 function renderExpectancy(ann){
@@ -1191,7 +1254,7 @@ function renderExpectancy(ann){
   const winRateDec = decided? winners.length/decided : 0;
   const avgWinUSD = winners.length ? winners.reduce((s,a)=>s+a.net,0)/winners.length : 0;
   const avgLossUSD = losers.length ? losers.reduce((s,a)=>s+a.net,0)/losers.length : 0;
-  const expectancy = winRateDec*avgWinUSD + (1-winRateDec)*avgLossUSD;
+  const expectancy = ann.reduce((s,a)=>s+a.net,0)/ann.length;
 
   const grossProfit = ann.filter(a=>a.net>0).reduce((s,a)=>s+a.net,0);
   const grossLoss = Math.abs(ann.filter(a=>a.net<0).reduce((s,a)=>s+a.net,0));
@@ -1289,201 +1352,12 @@ function renderDashboard(){
   const hint = document.querySelector('.pnl-panel .hint');
   if(hint) hint.textContent = RANGE_LABELS[pnlRange] || 'Over time';
   renderPnlStats(ann);
-  renderEquityCurve(ann);
+  renderEquityCurve(aggregateEquity(ann));
   renderRRMini(ann);
   renderExpectancy(ann);
   renderWinnersLosers(ann);
-  renderPerfBySide(ann);
-  renderPerfBySession(ann);
-  renderPerfByDay(ann);
-  renderTradeFrequency(ann);
-}
-
-/* ============================================================
-   PERFORMANCE — by side / by session / by day / trade frequency
-   All colors below come from CSS variables (--emerald, --amber,
-   --red, --track-bg, ...) so every chart stays readable and on-
-   brand in both the light and dark theme without any hardcoded hex.
-============================================================ */
-function arcDonutSegments(segments, size, thickness){
-  const r = (size-thickness)/2, c = 2*Math.PI*r;
-  let offset = 0;
-  const arcs = segments.map(seg=>{
-    const len = Math.max(0, Math.min(1, seg.value)) * c;
-    const dash = `${len.toFixed(2)} ${Math.max(0,c-len).toFixed(2)}`;
-    const dashoffset = (-offset).toFixed(2);
-    offset += len;
-    return `<circle class="donut-seg" cx="${size/2}" cy="${size/2}" r="${r}" style="stroke:${seg.color}" stroke-width="${thickness}" stroke-dasharray="${dash}" stroke-dashoffset="${dashoffset}"/>`;
-  }).join('');
-  return `<svg class="donut-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Distribution donut">
-    <circle class="donut-bg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${thickness}"/>
-    ${arcs}
-  </svg>`;
-}
-function miniRing(frac, color, size, thickness){
-  const r = (size-thickness)/2, c = 2*Math.PI*r, dash = c*Math.max(0, Math.min(1, frac||0));
-  return `<svg class="mini-ring" viewBox="0 0 ${size} ${size}" role="img" aria-label="Percentage gauge">
-    <circle class="mini-ring-bg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${thickness}"/>
-    <circle class="mini-ring-fg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${thickness}" style="stroke:${color}" stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"/>
-  </svg>`;
-}
-function winRateOf(list){
-  const w = list.filter(a=>a.eff==='win').length;
-  const l = list.filter(a=>a.eff==='loss').length;
-  const d = w+l;
-  return d ? w/d : 0;
-}
-function renderPerfBySide(ann){
-  const el = document.getElementById('perfSideGrid');
-  if(!el) return;
-  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
-  const buys = ann.filter(a=>a.t.direction==='buy');
-  const sells = ann.filter(a=>a.t.direction==='sell');
-  const total = ann.length;
-  const buyPct = total ? buys.length/total : 0;
-  const sellPct = total ? sells.length/total : 0;
-  const buyWR = winRateOf(buys), sellWR = winRateOf(sells);
-
-  el.innerHTML = `
-    <div class="side-card">
-      <h4 class="en">Total Trades</h4>
-      <div class="side-donut-wrap">
-        ${arcDonutSegments([ {value:buyPct, color:'var(--emerald)'}, {value:sellPct, color:'var(--amber)'} ], 140, 18)}
-        <div class="side-donut-center"><span class="en">${total}</span><small class="en">TRADES</small></div>
-      </div>
-      <div class="side-legend">
-        <span class="lg-item"><i style="background:var(--emerald)"></i>Buy <b class="en">${(buyPct*100).toFixed(1)}%</b></span>
-        <span class="lg-item"><i style="background:var(--amber)"></i>Sell <b class="en">${(sellPct*100).toFixed(1)}%</b></span>
-      </div>
-    </div>
-    <div class="side-card">
-      <h4 class="en">Win Rate</h4>
-      <div class="side-gauges">
-        <div class="side-gauge">
-          ${miniRing(buyWR, 'var(--emerald)', 88, 10)}
-          <div class="side-gauge-label"><b class="en">${(buyWR*100).toFixed(0)}%</b><span class="en">Buy</span></div>
-        </div>
-        <div class="side-gauge">
-          ${miniRing(sellWR, 'var(--amber)', 88, 10)}
-          <div class="side-gauge-label"><b class="en">${(sellWR*100).toFixed(0)}%</b><span class="en">Sell</span></div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderPerfBySession(ann){
-  const el = document.getElementById('perfSessionGrid');
-  if(!el) return;
-  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
-  const groups = {};
-  ann.forEach(a=>{
-    const k = a.t.killzone || 'Out of Killzone';
-    (groups[k] || (groups[k]=[])).push(a);
-  });
-  const order = KZ_OPTIONS.filter(k=>groups[k] && groups[k].length);
-  el.innerHTML = order.map(k=>{
-    const list = groups[k];
-    const wr = winRateOf(list)*100;
-    const avgRR = list.reduce((s,a)=>s+(Number(a.t.rr)||0),0)/list.length;
-    const net = list.reduce((s,a)=>s+a.net,0);
-    return `
-      <div class="session-card">
-        <div class="session-name en">${esc(k)}</div>
-        <div class="session-metrics">
-          <div class="session-metric"><span class="k en">Win Rate</span><b class="en ${wr>=50?'pos':'neg'}">${wr.toFixed(0)}%</b></div>
-          <div class="session-metric"><span class="k en">Trades</span><b class="en">${list.length}</b></div>
-          <div class="session-metric"><span class="k en">Avg RR</span><b class="en ${avgRR>=0?'pos':'neg'}">${fmtR(avgRR)}</b></div>
-          <div class="session-metric"><span class="k en">Net</span><b class="en ${net>=0?'pos':'neg'}">${fmtUSD(net)}</b></div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-const WEEKDAYS_EN = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-function renderPerfByDay(ann){
-  const el = document.getElementById('perfDayChart');
-  if(!el) return;
-  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
-  const buckets = WEEKDAYS_EN.map(()=>({ net:0, wins:0, losses:0, n:0 }));
-  ann.forEach(a=>{
-    const d = new Date((a.t.date||'')+'T00:00:00');
-    if(isNaN(d)) return;
-    const b = buckets[(d.getDay()+6)%7];
-    b.net += a.net; b.n++;
-    if(a.eff==='win') b.wins++; else if(a.eff==='loss') b.losses++;
-  });
-  const maxAbs = Math.max(1, ...buckets.map(b=>Math.abs(b.net)));
-  el.innerHTML = buckets.map((b,i)=>{
-    const decided = b.wins+b.losses;
-    const wr = decided ? (b.wins/decided*100) : null;
-    const widthPct = b.n ? Math.max(4, Math.abs(b.net)/maxAbs*100) : 0;
-    const isPos = b.net>=0;
-    return `
-      <div class="pday-row">
-        <span class="pday-lbl en">${WEEKDAYS_EN[i]}</span>
-        <div class="pday-track"><div class="pday-bar ${isPos?'pos':'neg'}" style="width:${widthPct}%"></div></div>
-        <span class="pday-val ${b.n?(isPos?'pos':'neg'):''}">${b.n ? esc(fmtUSD(b.net)) : '—'}</span>
-        <span class="pday-wr ${wr===null?'':(wr>=50?'pos':'neg')}">${wr===null?'—':wr.toFixed(0)+'%'}</span>
-      </div>`;
-  }).join('');
-}
-
-function isoWeekKey(d){
-  const t = new Date(d.getTime());
-  t.setHours(0,0,0,0);
-  t.setDate(t.getDate() + 3 - ((t.getDay()+6)%7));
-  const week1 = new Date(t.getFullYear(), 0, 4);
-  const weekNo = 1 + Math.round(((t-week1)/86400000 - 3 + ((week1.getDay()+6)%7)) / 7);
-  return t.getFullYear()+'-W'+weekNo;
-}
-function freqCard(title, avgLabel, series, labels){
-  const max = Math.max(1, ...series, 0);
-  const bars = series.map((v,i)=>`
-    <div class="freq-bar-wrap">
-      <div class="freq-bar" style="height:${Math.max(4, v/max*100)}%"></div>
-      ${labels ? `<span class="freq-bar-lbl en">${esc(labels[i])}</span>` : ''}
-    </div>`).join('');
-  return `
-    <div class="freq-card">
-      <div class="freq-head"><span class="en">${esc(title)}</span><b class="en">Avg ${esc(avgLabel)}</b></div>
-      <div class="freq-bars">${bars || '<div class="freq-bar-wrap"></div>'}</div>
-    </div>`;
-}
-function renderTradeFrequency(ann){
-  const el = document.getElementById('freqGrid');
-  if(!el) return;
-  if(!ann.length){ el.innerHTML = `<div class="empty-state"><p>داده‌ای نیست.</p></div>`; return; }
-
-  const dayCounts = WEEKDAYS_EN.map(()=>0);
-  const distinctDays = new Set();
-  const weekCounts = new Map();
-  const monthCounts = new Map();
-
-  ann.forEach(a=>{
-    const dateStr = a.t.date || '';
-    if(!dateStr) return;
-    distinctDays.add(dateStr);
-    const d = new Date(dateStr+'T00:00:00');
-    if(isNaN(d)) return;
-    dayCounts[(d.getDay()+6)%7]++;
-    monthCounts.set(dateStr.slice(0,7), (monthCounts.get(dateStr.slice(0,7))||0)+1);
-    const wk = isoWeekKey(d);
-    weekCounts.set(wk, (weekCounts.get(wk)||0)+1);
-  });
-
-  const total = ann.length;
-  const avgPerDay = distinctDays.size ? total/distinctDays.size : 0;
-  const avgPerWeek = weekCounts.size ? total/weekCounts.size : 0;
-  const avgPerMonth = monthCounts.size ? total/monthCounts.size : 0;
-
-  const weekSeries = [...weekCounts.values()].slice(-8);
-  const monthSeries = [...monthCounts.values()].slice(-8);
-
-  el.innerHTML =
-    freqCard('Trades / day', avgPerDay.toFixed(2), dayCounts, WEEKDAYS_EN) +
-    freqCard('Trades / week', avgPerWeek.toFixed(1), weekSeries) +
-    freqCard('Trades / month', avgPerMonth.toFixed(0), monthSeries);
+  renderPerformance(ann);
+  if(!ann.length){ document.getElementById('statGridPerf').innerHTML='';document.getElementById('statGridAccount').innerHTML=''; }
 }
 
 /* ============================================================
@@ -1666,27 +1540,52 @@ function renderCalendar(){
 }
 
 /* ============================================================
-   STANDALONE CHECKLIST (Checklist tab)
+   STANDALONE CHECKLIST
 ============================================================ */
-function renderStandaloneChecklist(){
-  const el = document.getElementById('standaloneChecklist');
-  if(!el) return;
-  el.innerHTML = renderChecklistBlocks(CHECKLIST_STEPS, standaloneChecklistState, 'standalone');
-  wireChecklist(el, CHECKLIST_STEPS, standaloneChecklistState, renderStandaloneChecklist);
-  const done = stepsDoneCount(CHECKLIST_STEPS, standaloneChecklistState);
-  document.getElementById('clProgressText').textContent = `${done} از ${CHECKLIST_STEPS.length} مرحله`;
-  document.getElementById('clProgressFill').style.width = (done/CHECKLIST_STEPS.length*100)+'%';
+let currentSetupId = 'standard';
+function renderSetupPicker(){
+  const el = document.getElementById('setupPicker');
+  el.innerHTML = SETUP_ORDER.map(id=>{
+    const s = SETUPS[id];
+    const state = standaloneChecklistState[id] || (standaloneChecklistState[id]={});
+    const done = stepsDoneCount(s.steps, state);
+    return `<button type="button" class="setup-card accent-${s.accent} ${currentSetupId===id?'active':''}" data-setup="${id}">
+        <div class="setup-card-top"><span class="setup-tag en">${s.tag}</span>${done>0?`<span class="setup-progress-pill en">${done}/${s.steps.length}</span>`:''}</div>
+        <div class="setup-card-title">${s.label}</div>
+        <div class="setup-card-desc">${s.desc}</div>
+      </button>`;
+  }).join('');
+  el.querySelectorAll('.setup-card').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ currentSetupId = btn.dataset.setup; renderStandaloneChecklist(); });
+  });
 }
+function renderStandaloneChecklist(){
+  renderSetupPicker();
+  const body = document.getElementById('checklistBody');
+  if(!currentSetupId){ body.classList.add('hidden'); return; }
+  body.classList.remove('hidden');
+  const setup = SETUPS[currentSetupId];
+  const state = standaloneChecklistState[currentSetupId] || (standaloneChecklistState[currentSetupId]={});
+  document.getElementById('clSetupTitle').textContent = setup.label;
+  const el = document.getElementById('standaloneChecklist');
+  el.innerHTML = renderChecklistBlocks(setup.steps, state, 'standalone:'+currentSetupId);
+  wireChecklist(el, setup.steps, state, renderStandaloneChecklist);
+  const done = stepsDoneCount(setup.steps, state);
+  document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
+  document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
+}
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='standard'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
-  standaloneChecklistState = {};
+  if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
 });
 document.getElementById('clGoJournalBtn').addEventListener('click', ()=>{
-  const state = { ...standaloneChecklistState };
+  if(!currentSetupId) return;
+  const id = currentSetupId, state = standaloneChecklistState[id];
   goToView('journal');
   resetForm();
   document.getElementById('tradeFormPanel').classList.remove('hidden');
-  buildFormChecklist(state);
+  buildFormChecklist(id, state);
 });
 
 /* ============================================================
@@ -1780,14 +1679,16 @@ function exportData(){
 
 const CSV_COLS = [
   ['id','id'], ['date','date'], ['symbol','symbol'], ['trend','trend'], ['direction','direction'],
-  ['result','result'], ['r','rr'], ['ideal_r','idealRR'], ['could_be_profit','couldBeProfitOrBE'],
+  ['entry_time','entryTime'], ['duration_minutes','durationMinutes'], ['result','result'], ['r','rr'], ['ideal_r','idealRR'], ['could_be_profit','couldBeProfitOrBE'],
   ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
   ['commission','__commission'], ['net_pl','__net'],
+  ['setup','__setup'],
   ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'],
-  ['with_crtbox','cl.with_crtbox'], ['without_crtbox','cl.without_crtbox'],
-  ['cisd','cl.cisd'], ['mss','cl.mss'],
-  ['ifvg','cl.ifvg'], ['chain_cisd','cl.chain_cisd'],
-  ['pullback_cisd','cl.pullback_cisd'], ['break_ob','cl.breakob'],
+  ['with_crt','cl.withCrt'], ['without_crt','cl.withoutCrt'], ['entry_cisd','cl.entryCisd'], ['pullback_cisd','cl.pullbackCisd'],
+  ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
+  
+  ['leg_strong','cl.leg_strong'], ['leg_fvg','cl.leg_fvg'], ['m15_cisd','cl.m15_cisd'], ['ifvg','cl.ifvg'],
+  ['follow_through','cl.followThrough'], ['stop_raid','cl.sr'], ['break_ob','cl.breakob'],
   ['entry_reason','entryReason'], ['exit_reason','exitReason'], ['notes','notes'],
   ['chart_15m','__l15'], ['chart_1m','__l1'], ['created_at','createdAt']
 ];
@@ -1802,7 +1703,8 @@ function tradeToCsvRow(t){
   return CSV_COLS.map(([,key])=>{
     if(key==='__commission') return calcCommission(t).toFixed(2);
     if(key==='__net') return calcNet(t).toFixed(2);
-    if(key==='__cl') return stepsDoneCount(CHECKLIST_STEPS,cl)+'/'+CHECKLIST_STEPS.length;
+    if(key==='__cl'){ const st=getSetup(t.setupId); return stepsDoneCount(st.steps,cl)+'/'+st.steps.length; }
+    if(key==='__setup') return getSetup(t.setupId).label;
     if(key==='__l15') return (t.links&&t.links['15'])||'';
     if(key==='__l1') return (t.links&&t.links['1'])||'';
     if(key.startsWith('cl.')) return !!cl[key.slice(3)];
@@ -1850,20 +1752,20 @@ function parseCsvTrades(text){
     return {
       id: g('id') || undefined,
       v: SCHEMA_VERSION,
-      date: g('date'), symbol: SYMBOL,
+      date: g('date'), symbol: SYMBOL, entryTime:g('entry_time'), durationMinutes:g('duration_minutes')===''?null:Number(g('duration_minutes')),
       trend: g('trend')||'bullish', direction: g('direction')||'buy',
       result: g('result')||'be',
-      rr: Number(g('r'))||0, idealRR: Number(g('ideal_r'))||0,
+      rr: Number(g('r'))||0, idealRR: g('ideal_r')===''?null:Number(g('ideal_r')),
       couldBeProfitOrBE: bool('could_be_profit'),
       killzone: g('killzone'),
       lotSize: Number(g('lot'))||0, grossPL: Number(g('gross_pl'))||0,
       entryReason: g('entry_reason'), exitReason: g('exit_reason'), notes: g('notes'),
       checklist: {
         bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'),
-        with_crtbox:bool('with_crtbox'), without_crtbox:bool('without_crtbox'),
+        crt:bool('crt'), box:bool('box'),withCrt:bool('with_crt'),withoutCrt:bool('without_crt'),entryCisd:bool('entry_cisd'),pullbackCisd:bool('pullback_cisd'),ifvg:bool('ifvg'),
         cisd:bool('cisd'), mss:bool('mss'),
-        ifvg:bool('ifvg'), chain_cisd:bool('chain_cisd'),
-        pullback_cisd:bool('pullback_cisd'), breakob:bool('break_ob')
+        ob50:bool('ob50'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
+        breakob:bool('break_ob')
       },
       links: { '15': g('chart_15m'), '1': g('chart_1m') },
       createdAt: Number(g('created_at')) || 0
@@ -2222,7 +2124,11 @@ async function loadUserTrades(){
   }catch(e){
     console.error('Supabase load failed', e);
     setSyncStatus('دریافت از سرور ناموفق بود', 'err');
-    showToast('دریافت داده از سرور ناموفق بود');
+    showToast('دریافت داده از سرور ناموفق بود؛ صفحه را دوباره بارگذاری کنید.');
+    document.getElementById('app-shell').style.display='none';
+    document.getElementById('auth-modal').style.display='';
+    showAuthMsg('دریافت معاملات ناموفق بود. برای جلوگیری از ثبت روی داده ناقص، دوباره وارد شوید.');
+    return;
   }
   rebuildIndex();
   saveTrades(trades);
@@ -2296,3 +2202,75 @@ function init(){
   renderTradesList();
 }
 init();
+/* Performance: every aggregation uses the same selected date range. */
+function perfStats(rows){
+ const wins=rows.filter(a=>a.eff==='win').length, losses=rows.filter(a=>a.eff==='loss').length;
+ return {n:rows.length,net:rows.reduce((s,a)=>s+a.net,0),rr:rows.length?rows.reduce((s,a)=>s+Number(a.t.rr||0),0)/rows.length:null,wr:wins+losses?wins/(wins+losses)*100:null};
+}
+function perfBars(groups,metric='net'){
+ if(!groups.some(g=>g.rows.length))return '<div class="empty-state">هنوز داده‌ای برای این نمودار ثبت نشده است.</div>';
+ const vals=groups.map(g=>perfStats(g.rows)[metric]);const max=Math.max(1,...vals.map(v=>Math.abs(v||0)));
+ return '<div class="perf-bars" dir="ltr">'+groups.map((g,i)=>{let v=vals[i];return `<div class="perf-bar-row"><span>${esc(g.label)}</span><div class="perf-bar-track"><i class="${v<0?'negative':''}" style="width:${Math.abs(v||0)/max*100}%"></i></div><b>${!g.rows.length||v===null?'—':metric==='net'?fmtUSD(v):metric==='wr'?v.toFixed(1)+'%':metric==='rr'?v.toFixed(2)+'R':v}</b></div>`;}).join('')+'</div>';
+}
+function perfDonut(value,total,label,color){
+ const pct=total?value/total*100:0;
+ return `<div class="perf-donut" style="--arc:${pct}%;--donut-color:${color}"><div><b>${total?pct.toFixed(1)+'%':'—'}</b><span>${label}</span></div></div>`;
+}
+function renderPerformance(ann){
+ const host=document.getElementById('performanceExtra');if(!host)return;
+ const ui=window.performanceUI||(window.performanceUI={month:todayNY().slice(0,7),metric:'net',calendarMode:'net',balance:'initial'});
+ const buys=ann.filter(a=>a.t.direction==='buy'), sells=ann.filter(a=>a.t.direction==='sell');
+ const bySide=[{label:'Buy',rows:buys},{label:'Sell',rows:sells}];
+ const sessions=[...new Set(['NY AM','NY PM',...ann.map(a=>a.t.killzone||'Out of Killzone')])].map(label=>({label,rows:ann.filter(a=>a.t.killzone===label)}));
+ const timed=ann.filter(a=>/^([01]\d|2[0-3]):[0-5]\d/.test(a.t.entryTime||''));
+ const hours=[...new Set(timed.map(a=>a.t.entryTime.slice(0,2)))].sort().map(h=>({label:h+':00',rows:timed.filter(a=>a.t.entryTime.slice(0,2)===h)}));
+ const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((label,i)=>({label,rows:ann.filter(a=>(new Date(a.t.date+'T12:00:00Z').getUTCDay()+6)%7===i)}));
+ const year=Number(ui.month.slice(0,4));const month=Number(ui.month.slice(5))-1;
+ const base=ui.balance==='current'?calcBalance():Number(settings.initialBalance);
+ const monthRows=Array.from({length:12},(_,i)=>ann.filter(a=>a.t.date.slice(0,7)===`${year}-${pad2(i+1)}`));
+ const yearRows=ann.filter(a=>a.t.date.startsWith(year+'-'));
+ const pct=rows=>!rows.length||!base?'—':fmtPct(perfStats(rows).net/base*100);
+ let calendar='';const leading=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7;
+ for(let i=0;i<leading;i++)calendar+='<div class="pcell blank"></div>';
+ for(let d=1;d<=new Date(Date.UTC(year,month+1,0)).getUTCDate();d++){
+  const date=`${year}-${pad2(month+1)}-${pad2(d)}`,rs=ann.filter(a=>a.t.date===date),st=perfStats(rs);
+  let val=ui.calendarMode==='n'?String(st.n):ui.calendarMode==='pct'?pct(rs):fmtUSD(st.net);
+  calendar+=`<div class="pcell ${rs.length?(st.net<0?'negative':'positive'):''}"><b>${d}</b>${rs.length?`<small>${st.n} trades</small><strong>${val}</strong>`:''}</div>`;
+ }
+ const dates=[...new Set(ann.map(a=>a.t.date))].sort();
+ const span=dates.length?Math.floor((Date.parse(dates.at(-1))-Date.parse(dates[0]))/86400000)+1:0;
+ const freq=[{label:'Trades / day',v:span?ann.length/span:null,groups:days},{label:'Trades / week',v:span?ann.length/(Math.floor((span-1)/7)+1):null,groups:[]},{label:'Trades / month',v:dates.length?ann.length/((Number(dates.at(-1).slice(0,4))-Number(dates[0].slice(0,4)))*12+Number(dates.at(-1).slice(5,7))-Number(dates[0].slice(5,7))+1):null,groups:monthRows.map((rows,i)=>({label:MONTHS_EN[i].slice(0,3),rows}))}];
+ const weeks=new Map();ann.forEach(a=>{let dt=new Date(a.t.date+'T12:00:00Z');dt.setUTCDate(dt.getUTCDate()-(dt.getUTCDay()+6)%7);let k=dt.toISOString().slice(0,10);if(!weeks.has(k))weeks.set(k,[]);weeks.get(k).push(a);});freq[1].groups=[...weeks].map(([label,rows])=>({label,rows}));
+ const opts=(items,selected)=>items.map(([v,l])=>`<option value="${v}" ${v===selected?'selected':''}>${l}</option>`).join('');
+ host.innerHTML=`
+ <h2 class="perf-heading en">Performance by side</h2><div class="road-grid"><article class="panel"><h3 class="en">Total Trades</h3><div class="donut-pair"><div class="side-total">${perfDonut(buys.length,buys.length+sells.length,'Buy','var(--profit)')}<p><span>Buy · ${buys.length}</span><span>Sell · ${sells.length}</span></p></div></div></article><article class="panel"><h3 class="en">Win Rate</h3><div class="donut-pair">${bySide.map(g=>perfDonut(g.rows.filter(a=>a.eff==='win').length,g.rows.filter(a=>a.eff!=='be').length,g.label,g.label==='Buy'?'var(--profit)':'var(--chart-blue)')).join('')}</div></article></div>
+ <h2 class="perf-heading en">Performance by session</h2><div class="session-grid">${[['wr','Win Rate'],['n','Total Trades'],['rr','Avg RR'],['net','Profit']].map(([key,label])=>`<article class="panel"><h3 class="en">${label}</h3>${perfBars(sessions,key)}</article>`).join('')}</div>
+ <article class="panel"><div class="panel-head"><h2 class="perf-heading en">Performance by time</h2><select id="perfMetric" aria-label="معیار نمودار ساعت">${opts([['net','Total Profit/Loss'],['wr','Win Rate'],['n','Total Trades'],['rr','Avg RR']],ui.metric)}</select></div><p class="hint">ساعت ورود به وقت نیویورک؛ ${ann.length-timed.length} معامله بدون ساعت ثبت‌شده</p>${perfColumns(hours,ui.metric)}</article>
+ <article class="panel"><h2 class="perf-heading en">Performance by day</h2>${perfDayBars(days)}<div class="perf-day-wr en">${days.map(g=>{let s=perfStats(g.rows);return `<span>${g.label} · ${s.wr===null?'—':s.wr.toFixed(1)+'% WR'}</span>`;}).join('')}</div></article>
+ <article class="panel"><div class="panel-head"><h2 class="perf-heading en">Performance by month</h2><select id="perfBalance" aria-label="مبنای درصد بازده">${opts([['initial','Initial Balance'],['current','Current Balance']],ui.balance)}</select></div><p class="hint">بازده خالص نسبت به موجودی انتخاب‌شده • ${year}</p><div class="month-scroll"><table class="perf-month en"><thead><tr><th>Year</th>${MONTHS_EN.map(n=>`<th>${n.slice(0,3)}</th>`).join('')}<th>YTD</th></tr></thead><tbody><tr><th>${year}</th>${monthRows.map(rs=>`<td class="${perfStats(rs).net<0?'neg':'pos'}">${pct(rs)}</td>`).join('')}<td>${pct(yearRows)}</td></tr></tbody></table></div></article>
+ <article class="panel"><div class="panel-head"><h2 class="perf-heading en">Performance calendar</h2><select id="perfCalMode" aria-label="معیار تقویم">${opts([['net','Profit / Loss'],['pct','Return %'],['n','Total Trades']],ui.calendarMode)}</select></div><div class="perf-cal-nav"><button type="button" id="perfPrev" aria-label="ماه قبل">‹</button><input type="month" id="perfMonth" aria-label="ماه تقویم عملکرد" value="${ui.month}" min="1900-01" max="2200-12"><button type="button" id="perfNext" aria-label="ماه بعد">›</button></div><div class="performance-calendar en">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<span>${d}</span>`).join('')}${calendar}</div></article>
+ <h2 class="perf-heading en">Average trade frequency</h2><p class="hint">میانگین بر مبنای فاصله اولین تا آخرین معامله، با احتساب روزهای بدون معامله</p><div class="frequency-grid">${freq.map(g=>`<article class="panel"><h3 class="en">${g.label}</h3><b class="freq-val en">${g.v===null?'—':g.v.toFixed(2)}</b>${perfColumns(g.groups,'n')}</article>`).join('')}</div>`;
+ [['perfMetric','metric'],['perfBalance','balance'],['perfCalMode','calendarMode'],['perfMonth','month']].forEach(([id,key])=>document.getElementById(id).addEventListener('change',e=>{if(!e.target.value)return;ui[key]=e.target.value;renderPerformance(computeAnnotated());}));
+ const shift=n=>{const dt=new Date(Date.UTC(year,month+n,1));ui.month=dt.toISOString().slice(0,7);renderPerformance(computeAnnotated());};document.getElementById('perfPrev').onclick=()=>shift(-1);document.getElementById('perfNext').onclick=()=>shift(1);
+ // Duration is optional and never inferred from creation time.
+ document.querySelectorAll('#wlGrid .wl-card').forEach((card,i)=>{const ds=ann.filter(a=>a.eff===(i?'loss':'win')&&a.t.durationMinutes!=null&&Number.isFinite(Number(a.t.durationMinutes))).map(a=>Number(a.t.durationMinutes));card.insertAdjacentHTML('beforeend',`<div class="wl-row"><span>Average duration</span><b>${ds.length?(ds.reduce((s,v)=>s+v,0)/ds.length).toFixed(1)+' min':'—'}</b></div>`);});
+}
+function perfColumns(groups,metric='net'){
+ if(!groups.some(g=>g.rows.length))return '<div class="empty-state">هنوز داده‌ای برای این نمودار ثبت نشده است.</div>';
+ const values=groups.map(g=>perfStats(g.rows)[metric]);const max=Math.max(1,...values.map(v=>Math.abs(v||0)));
+ return '<div class="perf-columns" dir="ltr">'+groups.map((g,i)=>{const v=values[i];const label=!g.rows.length||v===null?'—':metric==='net'?fmtUSD(v):metric==='wr'?v.toFixed(1)+'%':metric==='rr'?v.toFixed(2)+'R':String(v);return `<div class="perf-column"><b>${label}</b><div class="column-track"><i class="${v<0?'negative':''}" style="height:${Math.abs(v||0)/max*100}%"></i></div><span>${esc(g.label)}</span></div>`;}).join('')+'</div>';
+}
+function perfDayBars(groups){
+ if(!groups.some(g=>g.rows.length))return '<div class="empty-state">هنوز معامله‌ای ثبت نشده است.</div>';
+ const sums=groups.map(g=>({gain:g.rows.reduce((s,a)=>s+Math.max(0,a.net),0),loss:g.rows.reduce((s,a)=>s+Math.max(0,-a.net),0)}));const max=Math.max(1,...sums.flatMap(s=>[s.gain,s.loss]));
+ return '<div class="day-bars en">'+groups.map((g,i)=>`<div class="day-bar"><span>${g.label}</span><div class="day-negative"><i style="width:${sums[i].loss/max*100}%"></i></div><div class="day-positive"><i style="width:${sums[i].gain/max*100}%"></i></div><b>${g.rows.length?fmtUSD(perfStats(g.rows).net):'—'}</b></div>`).join('')+'</div>';
+}
+
+function aggregateEquity(ann){
+ const grain=document.querySelector('#equityGranularity .on')?.dataset.grain||'all';if(grain==='all')return ann;
+ const groups=new Map();
+ ann.forEach(a=>{let key=a.t.date;const time=a.t.entryTime||'';if(grain!=='day'&&/^([01]\d|2[0-3]):[0-5]\d/.test(time)){key+=' '+time.slice(0,2)+':'+(grain==='quarter'?pad2(Math.floor(Number(time.slice(3,5))/15)*15):'00');}else if(grain!=='day')key+=' untimed';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(a);});
+ return [...groups.values()].map(rows=>({...rows.at(-1),before:rows[0].before,net:rows.reduce((s,a)=>s+a.net,0)}));
+}
+document.getElementById('equityGranularity').addEventListener('click',e=>{const b=e.target.closest('[data-grain]');if(!b)return;document.querySelectorAll('#equityGranularity button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b));});renderDashboard();});
+document.getElementById('beThreshold').addEventListener('change',e=>{if(Number(e.target.value)<0)e.target.value='0';renderDashboard();});
