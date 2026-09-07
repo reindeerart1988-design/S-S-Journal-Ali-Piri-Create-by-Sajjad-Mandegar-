@@ -15,6 +15,15 @@
   --kzh:56px;
   --grey-btn:#5d6879; --grey-btn-fg:#ffffff;
   --radius-lg:18px; --radius-md:13px; --radius-sm:9px;
+
+  /* Fallback aliases: several rules reference --emerald*/--danger* directly.
+     Outside dark mode these now resolve to the light theme's own blue/red
+     palette instead of being undefined (which was the root cause of the
+     light-theme rendering bugs — badges, calendar heat, hero number, tooltip). */
+  --emerald:var(--blue); --emerald-light:var(--blue-light); --emerald-dark:var(--blue-dark);
+  --emerald-soft:var(--blue-soft); --emerald-soft-strong:rgba(31,95,208,.16);
+  --danger:var(--red); --danger-soft:var(--red-soft); --danger-soft-strong:rgba(208,52,44,.16);
+  --app-bg:var(--bg); --panel-bg:var(--panel); --panel-border:var(--line);
 }
 
 html[data-theme="dark"]{
@@ -236,7 +245,7 @@ svg.equity{ display:block; max-width:100%; }
 .eq-cursor.on{ opacity:.5; }
 .eq-marker{ position:absolute; width:9px; height:9px; border-radius:50%; background:var(--panel); border:2px solid var(--emerald); transform:translate(-50%,-50%); opacity:0; pointer-events:none; }
 .eq-marker.on{ opacity:1; }
-.eq-tip{ position:absolute; z-index:5; background:#03060B; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:7px 10px; font-family:'JetBrains Mono'; font-size:10.5px; line-height:1.55; direction:ltr; white-space:nowrap; pointer-events:none; opacity:0; transform:translate(-50%,-118%); transition:opacity .12s; }
+.eq-tip{ position:absolute; z-index:5; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:7px 10px; font-family:'JetBrains Mono'; font-size:10.5px; line-height:1.55; direction:ltr; white-space:nowrap; pointer-events:none; opacity:0; transform:translate(-50%,-118%); transition:opacity .12s; box-shadow:var(--shadow); }
 .eq-tip.on{ opacity:1; }
 .eq-grid line{ stroke:var(--line); stroke-width:1; stroke-dasharray:3 5; }
 
@@ -628,16 +637,11 @@ html[data-theme="light"] .bg-mesh{ display:none; }
 }
 
 /* ---------- Dashboard hero PnL ---------- */
-.pnl-stat.pnl-hero{ position:relative; padding-inline-end:14px; }
 .pnl-stat.pnl-hero .lbl{ font-size:10.5px; }
-.pnl-stat.pnl-hero .val{ font-family:'Space Grotesk'; font-size:clamp(30px,7vw,44px); font-weight:700; letter-spacing:-.5px;
-  background:linear-gradient(155deg,var(--ink),var(--ink)); -webkit-background-clip:text; }
-.pnl-stat.pnl-hero .val.pos{ background:linear-gradient(155deg,var(--emerald-light),var(--emerald)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.pnl-stat.pnl-hero .val.neg{ background:linear-gradient(155deg,#FF8A8A,var(--danger)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-@media (min-width:640px){
-  .pnl-stats-row{ align-items:flex-end; }
-  .pnl-stat.pnl-hero{ grid-column:span 2; }
-}
+.pnl-stat.pnl-hero .val{ font-family:'Space Grotesk'; font-size:clamp(28px,6vw,40px); font-weight:700; letter-spacing:-.5px; color:var(--ink); }
+.pnl-stat.pnl-hero .val.pos{ color:var(--emerald); }
+.pnl-stat.pnl-hero .val.neg{ color:var(--danger); }
+.pnl-stat.pnl-hero .val .pct{ font-size:13px; }
 
 /* ---------- Calendar heat intensity ---------- */
 .cal-cell.pos{ background:color-mix(in srgb, var(--emerald) calc(14% + 34% * var(--intensity,0)), var(--bg-2)); }
@@ -685,6 +689,12 @@ html[data-theme="light"] .bg-mesh{ display:none; }
 .auth-visual-text{ margin-top:26px; }
 .auth-visual-text b{ display:block; font-size:19px; font-weight:700; color:var(--ink); margin-bottom:6px; }
 .auth-visual-text span{ display:block; font-size:12.5px; color:var(--muted); line-height:1.8; }
+
+/* ---------- Light-theme contrast fixes ---------- */
+html[data-theme="light"] .badge.win,
+html[data-theme="light"] .badge.loss,
+html[data-theme="light"] .cl-setup-badge,
+html[data-theme="light"] .setup-tag{ color:#ffffff; }
 
 @media (prefers-reduced-motion:reduce){
   .nav-pill, .val-pop, .cmdk-box, .trade-card{ animation:none !important; transition:none !important; }
