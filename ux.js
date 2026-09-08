@@ -16,16 +16,13 @@ window.organizePerformance=function(host,expanded){
  }
 };
 function ready(){
- document.querySelectorAll('.sample-card').forEach(card=>{
-  const preview=card.querySelector('img');
-  const recover=()=>{if(preview.dataset.fallback==='1'){preview.alt='پیش‌نمایش در دسترس نیست؛ برای بازکردن تصویر کلیک کنید';return;}preview.dataset.fallback='1';preview.src=card.dataset.full;};
-  preview.addEventListener('error',recover);
-  if(preview.complete&&preview.naturalWidth===0)recover();
+ document.querySelectorAll('.sample-card img,.road-image-card img').forEach(preview=>{
+  preview.addEventListener('error',()=>{if(preview.dataset.retried)return;preview.dataset.retried='1';const url=new URL(preview.closest('[data-full]').dataset.full,location.href);url.searchParams.set('retry','16');preview.src=url.href;});
  });
  const tabs=[document.getElementById('road-tab-rules'),document.getElementById('road-tab-examples')];
  function activate(index){tabs.forEach((tab,i)=>{const selected=i===index;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;document.getElementById(tab.getAttribute('aria-controls')).hidden=!selected;});}
  tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activate(index));tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowLeft'||e.key==='ArrowRight')next=1-index;else if(e.key==='Home')next=0;else if(e.key==='End')next=1;else return;e.preventDefault();activate(next);tabs[next].focus();});});
- const cards=[...document.querySelectorAll('.sample-card')],dialog=document.getElementById('sampleViewer'),stage=document.getElementById('sampleStage'),canvas=document.getElementById('sampleCanvas'),img=document.getElementById('sampleImage');
+ let cards=[...document.querySelectorAll('.sample-card')];const dialog=document.getElementById('sampleViewer'),stage=document.getElementById('sampleStage'),canvas=document.getElementById('sampleCanvas'),img=document.getElementById('sampleImage');
  let current=0,zoom=1,opener=null,drag=null,scrollBefore='';
  const get=id=>document.getElementById(id);
  function layout(){
@@ -37,12 +34,12 @@ function ready(){
  }
  function setZoom(value){const ox=(stage.scrollLeft+stage.clientWidth/2)/(canvas.offsetWidth||1),oy=(stage.scrollTop+stage.clientHeight/2)/(canvas.offsetHeight||1);zoom=Math.max(1,Math.min(5,value));layout();stage.scrollLeft=ox*canvas.offsetWidth-stage.clientWidth/2;stage.scrollTop=oy*canvas.offsetHeight-stage.clientHeight/2;}
  function show(index){
-  current=Math.max(0,Math.min(cards.length-1,index));zoom=1;drag=null;img.hidden=true;get('sampleError').hidden=true;get('sampleTitle').textContent='نمونه ترید '+String(current+1).padStart(2,'0');get('sampleCounter').textContent=(current+1)+' / '+cards.length;
+  current=Math.max(0,Math.min(cards.length-1,index));zoom=1;drag=null;img.hidden=true;get('sampleError').hidden=true;get('sampleTitle').textContent=cards[current].dataset.title||('نمونه ترید '+String(current+1).padStart(2,'0'));get('sampleCounter').textContent=(current+1)+' / '+cards.length;
   get('samplePrevious').disabled=current===0;get('sampleNext').disabled=current===cards.length-1;get('sampleZoomValue').textContent='100%';get('sampleZoomOut').disabled=true;get('sampleZoomIn').disabled=false;
-  img.alt='چارت نمونه ترید '+(current+1);img.src=cards[current].dataset.full;stage.scrollTo(0,0);
+  img.alt=cards[current].dataset.title||('چارت نمونه ترید '+(current+1));img.src=cards[current].dataset.full;stage.scrollTo(0,0);
  }
  img.addEventListener('load',()=>{img.hidden=false;layout();});img.addEventListener('error',()=>{img.hidden=true;get('sampleError').hidden=false;});
- cards.forEach((card,index)=>card.addEventListener('click',()=>{opener=card;scrollBefore=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();show(index);get('sampleClose').focus();}));
+ document.querySelectorAll('.sample-card,.road-image-card').forEach(card=>card.addEventListener('click',()=>{cards=[...document.querySelectorAll(card.classList.contains('road-image-card')?'.road-image-card':'.sample-card')];const index=cards.indexOf(card);opener=card;scrollBefore=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();show(index);get('sampleClose').focus();}));
  get('sampleClose').addEventListener('click',()=>dialog.close());
  dialog.addEventListener('close',()=>{document.body.style.overflow=scrollBefore;drag=null;opener?.focus();});
  get('sampleNext').addEventListener('click',()=>show(current+1));get('samplePrevious').addEventListener('click',()=>show(current-1));get('sampleZoomIn').addEventListener('click',()=>setZoom(zoom+.5));get('sampleZoomOut').addEventListener('click',()=>setZoom(zoom-.5));get('sampleFit').addEventListener('click',()=>{zoom=1;layout();stage.scrollTo(0,0);});
