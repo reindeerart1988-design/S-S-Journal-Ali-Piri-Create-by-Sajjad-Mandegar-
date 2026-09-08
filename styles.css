@@ -854,3 +854,7 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 #addAccountDialog::backdrop{background:#030811b8}
 #addAccountForm h2{font-size:21px;margin-bottom:10px}#addAccountForm .field{margin-top:14px}#addAccountForm .form-actions{position:static}#newAccountError{color:var(--red);font-size:14px}
 @media(max-width:520px){.trading-account-bar{align-items:stretch;flex-wrap:wrap;gap:10px}.trading-account-picker{flex-basis:100%;max-width:none}#addTradingAccountBtn{width:100%}#addAccountDialog{padding:18px}}
+
+.road-description{border:1px solid var(--line);border-radius:14px;padding:16px;margin-block:20px;background:var(--panel);color:var(--text)}
+.road-description>summary{cursor:pointer;font-weight:700;padding:8px;min-height:44px}.road-description[open]>summary{margin-bottom:16px}
+.road-image-gallery{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-block:20px}.road-image-card{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;cursor:zoom-in}.road-image-card img{display:block;width:100%;height:auto;color:#253246}.road-image-card:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
