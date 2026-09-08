@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('ss:theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>S&amp;S • NY 🗽 (SM)</title>
+
+<!-- PWA: Add to Home Screen -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#080C14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="S&amp;S Journal">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=13">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="top-fixed">
+  <div class="kz-bar">
+    <div class="kz-clock"><span class="lbl en">NEW YORK</span><span class="time en" id="kzClock">--:--:--</span></div>
+    <div class="kz-pills" id="kzPills"></div>
+    <button type="button" class="cmdk-trigger en" id="cmdkTrigger" title="جستجوی سریع">⌘K</button>
+    <button type="button" class="profile-chip" id="profileChip" title="حساب کاربری">
+      <span class="profile-avatar" id="profileAvatarMobile">?</span>
+    </button>
+    <div class="theme-switch" id="themeSwitch">
+      <button type="button" data-theme="light" title="تم روشن"><svg viewbox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button>
+      <button type="button" data-theme="dark" title="تم مشکی/سبز"><svg viewbox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- فرم ورود و ثبت‌نام -->
+<div id="auth-modal" class="auth-shell" style="display:none;">
+  <div class="auth-form-col">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="auth-brand-mark">NQ</span><span class="auth-brand-name">S&amp;S Journal</span></div>
+      <h2>ورود به ژورنال معاملاتی</h2>
+      <p class="auth-sub">برای ذخیره ابری معاملات وارد حساب خود شوید</p>
+
+      <div class="auth-field"><label for="auth-name">نام و نام خانوادگی <span>(فقط برای ثبت‌نام)</span></label>
+        <input type="text" id="auth-name" placeholder="مثلاً علی پیری"></div>
+      <div class="auth-field"><label for="auth-email">ایمیل</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" class="en" style="direction:ltr; text-align:left;"></div>
+      <div class="auth-field"><label for="auth-password">رمز عبور</label>
+        <input type="password" id="auth-password" placeholder="••••••••"></div>
+
+      <div class="auth-actions">
+        <button class="btn btn-primary" onclick="handleLogin()">ورود به حساب</button>
+        <button class="btn btn-ghost" onclick="handleSignUp()">ثبت‌نام حساب جدید</button>
+      </div>
+      <a href="#" class="auth-forgot" onclick="handleForgotPassword(); return false;">رمز عبور را فراموش کرده‌اید؟</a>
+      <p id="auth-msg" class="auth-msg"></p>
+    </div>
+  </div>
+  <div class="auth-visual" aria-hidden="true">
+    <div class="auth-visual-inner">
+      <svg viewbox="0 0 480 320" class="auth-chart" preserveaspectratio="none">
+        <defs>
+          <lineargradient id="authChartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--emerald)" stop-opacity=".35"></stop>
+            <stop offset="100%" stop-color="var(--emerald)" stop-opacity="0"></stop>
+          </lineargradient>
+        </defs>
+        <path class="auth-chart-area" d="M0,230 L28,214 L56,222 L84,180 L112,196 L140,150 L168,168 L196,120 L224,140 L252,96 L280,112 L308,70 L336,92 L364,58 L392,78 L420,40 L448,60 L480,24 L480,320 L0,320 Z"></path>
+        <path class="auth-chart-line" d="M0,230 L28,214 L56,222 L84,180 L112,196 L140,150 L168,168 L196,120 L224,140 L252,96 L280,112 L308,70 L336,92 L364,58 L392,78 L420,40 L448,60 L480,24"></path>
+      </svg>
+      <div class="auth-visual-text">
+        <b>هر معامله، یک داده.</b>
+        <span>ثبت منظم یعنی ادج قابل‌اندازه‌گیری.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- فرم تنظیم رمز عبور جدید (فقط بعد از کلیک روی لینک ایمیل بازیابی رمز نمایش داده می‌شود) -->
+<div id="reset-password-modal" class="auth-shell" style="display:none;">
+  <div class="auth-form-col">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="auth-brand-mark">NQ</span><span class="auth-brand-name">S&amp;S Journal</span></div>
+      <h2>تنظیم رمز عبور جدید</h2>
+      <p class="auth-sub">یک رمز عبور جدید برای حسابت وارد کن</p>
+      <div class="auth-field"><label for="reset-password-input">رمز عبور جدید</label>
+        <input type="password" id="reset-password-input" placeholder="••••••••"></div>
+      <div class="auth-actions">
+        <button class="btn btn-primary" onclick="handleUpdatePassword()">ذخیرهٔ رمز جدید</button>
+      </div>
+      <p id="reset-password-msg" class="auth-msg"></p>
+    </div>
+  </div>
+  <div class="auth-visual" aria-hidden="true">
+    <div class="auth-visual-inner">
+      <svg viewbox="0 0 480 320" class="auth-chart" preserveaspectratio="none">
+        <path class="auth-chart-area" d="M0,230 L28,214 L56,222 L84,180 L112,196 L140,150 L168,168 L196,120 L224,140 L252,96 L280,112 L308,70 L336,92 L364,58 L392,78 L420,40 L448,60 L480,24 L480,320 L0,320 Z"></path>
+        <path class="auth-chart-line" d="M0,230 L28,214 L56,222 L84,180 L112,196 L140,150 L168,168 L196,120 L224,140 L252,96 L280,112 L308,70 L336,92 L364,58 L392,78 L420,40 L448,60 L480,24"></path>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- اسپینر بارگذاری تا مشخص شدن وضعیت ورود -->
+<div id="auth-loader" style="display:flex; align-items:center; justify-content:center; min-height:60vh;">
+    <div style="width:34px; height:34px; border-radius:50%; border:3px solid #2A364F; border-top-color:#10B981; animation:ss-spin .8s linear infinite;"></div>
+</div>
+<style>@keyframes ss-spin{ to{ transform:rotate(360deg); } }</style>
+
+<div class="shell" id="app-shell" style="display: none;">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">NQ</div>
+      <div class="brand-text"><b>S&amp;S</b><span>NY 🗽 (SM)</span></div>
+    </div>
+    <button type="button" class="sidebar-profile" id="sidebarProfile" title="پروفایل و تنظیمات حساب">
+      <span class="profile-avatar" id="profileAvatar">?</span>
+      <span class="sidebar-profile-text">
+        <span class="sidebar-profile-name en" id="profileName"></span>
+        <span class="sidebar-profile-email en" id="profileEmailMini"></span>
+      </span>
+    </button>
+    <nav class="side-nav" id="tabs">
+      <button class="tab-btn active" data-view="dashboard"><svg viewbox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"></path></svg>داشبورد</button>
+      <button class="tab-btn" data-view="journal"><svg viewbox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"></path><path d="M9 12h6M9 16h6"></path></svg>ژورنال</button>
+      <button class="tab-btn" data-view="calendar"><svg viewbox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M8 3v4M16 3v4M3 10h18"></path></svg>کلندر PnL</button>
+      <button class="tab-btn" data-view="checklist"><svg viewbox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m4 8 2 2 4-4M4 16l2 2 4-4M13 8h7M13 16h7"></path></svg>چک‌لیست</button>
+      <button class="tab-btn" data-view="roadmap"><svg viewbox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"></path><path d="M9 7h8M9 11h6"></path></svg><bdi dir="ltr">Roadmap</bdi></button>
+      <button class="tab-btn" data-view="account"><svg viewbox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>حساب</button>
+    </nav>
+  </aside>
+
+<main>  <div class="warn-banner" id="storageWarn" role="alert">
+    <span>⚠</span><span id="storageWarnText"></span>
+  </div>
+
+  <!-- ================= DASHBOARD ================= -->
+  <section class="view active" id="view-dashboard">
+    <h1 class="page-title en">Performance</h1>
+    <p class="page-sub">عملکرد کلی حساب</p>
+
+    <div class="panel pnl-panel">
+      <div class="panel-head">
+        <div><h3 class="en">Profit and loss</h3><span class="hint en">Over time</span></div>
+        <div class="seg range-seg en" id="pnlRangeSeg" role="group" aria-label="Date range">
+          <button type="button" data-range="all" class="on" aria-pressed="true">All</button>
+          <button type="button" data-range="7d" aria-pressed="false">7D</button>
+          <button type="button" data-range="30d" aria-pressed="false">30D</button>
+          <button type="button" data-range="3m" aria-pressed="false">3M</button>
+          <button type="button" data-range="ytd" aria-pressed="false">YTD</button>
+        </div>
+      </div>
+
+      <div class="perf-controls"><div class="seg en" id="equityGranularity" role="group" aria-label="تجمیع نمودار"><button type="button" class="on" data-grain="all" aria-pressed="true">All</button><button type="button" data-grain="day" aria-pressed="false">Day</button><button type="button" data-grain="hour" aria-pressed="false">1 Hour</button><button type="button" data-grain="quarter" aria-pressed="false">15 Min</button></div><label>آستانه سربه‌سر ($) <input type="number" min="0" step="0.01" value="0" id="beThreshold" aria-label="آستانه سربه‌سر به دلار"></label></div><div class="pnl-stats-row" id="pnlStatsRow"></div>
+
+      <div id="equityWrap"></div>
+
+      <div class="rr-mini-grid" id="rrMiniGrid"></div>
+    </div>
+
+    <details class="perf-details"><summary><bdi dir="ltr">Expectancy &amp; Profit Factor</bdi></summary><div class="panel">
+      <div class="exp-grid" id="expGrid"></div>
+    </div>
+
+    </details><details class="perf-details"><summary><bdi dir="ltr">Winners and Losers</bdi></summary><div class="panel">
+      <div class="wl-grid" id="wlGrid"></div>
+    </div>
+
+    </details><div id="performanceExtra"></div><div class="stat-section-label">عملکرد بر حسب R</div>
+    <div class="stat-grid" id="statGridPerf"></div>
+
+    <div class="stat-section-label">حساب</div>
+    <div class="stat-grid" id="statGridAccount"></div>
+  </section>
+
+  <!-- ================= JOURNAL ================= -->
+  <section class="view" id="view-journal">
+    <h1 class="page-title">Trade Journal</h1>
+    <p class="page-sub">ثبت و مرور معاملات NQ</p>
+
+    <div class="journal-toolbar">
+      <button class="btn btn-primary" id="newTradeBtn">
+        <svg viewbox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        ثبت معامله جدید
+      </button>
+      <div class="filter-row">
+        <select class="filter" id="filterKillzone"><option value="">همه‌ی کیل‌زون‌ها</option></select>
+        <select class="filter" id="filterDirection">
+          <option value="">همه‌ی جهت‌ها</option>
+          <option value="buy">Buy</option>
+          <option value="sell">Sell</option>
+        </select>
+        <select class="filter" id="filterResult">
+          <option value="">همه‌ی نتایج</option>
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+          <option value="be">BE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="journal-actions">
+      <button class="btn" id="exportBtnJournal">خروجی JSON</button>
+      <button class="btn" id="exportCsvBtnJournal">خروجی CSV</button>
+      <button class="btn" id="importBtnJournal">ایمپورت / ادغام</button>
+      <input type="file" id="importFileJournal" accept="application/json,.json,.csv,text/csv" style="display:none">
+      <button class="btn btn-danger" id="clearAllBtnJournal">پاک‌کردن معاملات (تنظیمات می‌ماند)</button>
+    </div>
+
+    <div class="trade-form-panel hidden" id="tradeFormPanel">
+      <div class="panel-head"><h3 id="formTitle">ثبت معامله جدید</h3></div>
+      <form id="tradeForm">
+
+        <fieldset class="form-block"><legend><span>۱</span>اطلاعات معامله</legend><div class="form-grid">
+          <div class="field"><label for="f-date">تاریخ</label><input type="date" id="f-date" required></div>
+          <div class="field"><label for="f-symbol">نماد</label><input type="text" id="f-symbol" class="en" value="NQ" readonly></div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="field"><label id="lbl-segTrend">روند ۱۵ دقیقه</label>
+            <div class="seg" id="segTrend" role="group" aria-labelledby="lbl-segTrend">
+              <button type="button" data-val="bullish" aria-pressed="false">Bullish</button>
+              <button type="button" data-val="bearish" data-tone="red" aria-pressed="false">Bearish</button>
+            </div>
+          </div>
+          <div class="field"><label id="lbl-segDirection">جهت معامله</label>
+            <div class="seg" id="segDirection" role="group" aria-labelledby="lbl-segDirection">
+              <button type="button" data-val="buy" aria-pressed="false">Buy</button>
+              <button type="button" data-val="sell" data-tone="red" aria-pressed="false">Sell</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px;"><label id="lbl-segKillzone">کیل‌زون</label>
+          <div class="seg" id="segKillzone" role="group" aria-labelledby="lbl-segKillzone">
+            <button type="button" data-val="NY AM" aria-pressed="false">NY AM · 08:30–11</button>
+            <button type="button" data-val="NY PM" aria-pressed="false">NY PM · 11–15</button>
+            <button type="button" data-val="Out of Killzone" data-tone="grey" aria-pressed="false">Out of KZ</button>
+          </div>
+        </div>
+
+        <div class="form-grid-2"><div class="field"><label for="f-entryTime">ساعت ورود به وقت نیویورک</label><input type="time" id="f-entryTime" class="en"></div><div class="field"><label for="f-duration">مدت معامله (دقیقه)</label><input type="number" min="0" step="0.1" id="f-duration" placeholder="اختیاری"></div></div></fieldset><fieldset class="form-block"><legend><span>۲</span>چک‌لیست ورود</legend><div class="chips" id="formSetupSwitch" style="margin-bottom:10px;"></div>
+        <div id="formChecklist"></div>
+
+        </fieldset><fieldset class="form-block"><legend><span>۳</span>نتیجه معامله</legend><div class="form-grid-2">
+          <div class="field"><label id="lbl-segResult">نتیجه معامله</label>
+            <div class="seg" id="segResult" role="group" aria-labelledby="lbl-segResult">
+              <button type="button" data-val="win" aria-pressed="false">Win</button>
+              <button type="button" data-val="loss" data-tone="red" aria-pressed="false">Loss</button>
+              <button type="button" data-val="be" data-tone="grey" aria-pressed="false">BE</button>
+            </div>
+          </div>
+          <div class="field" id="rrField"><label for="f-rr" id="rrLabel">R:R به‌دست‌آمده</label><input type="number" id="f-rr" step="0.1" min="0" placeholder="مثلاً 2.5"></div>
+        </div>
+
+        <div class="form-grid" style="margin-top:14px;">
+          <div class="field"><label for="f-lot">لات / سایز</label><input type="number" id="f-lot" step="0.01" placeholder="0.5"></div>
+          <div class="field"><label for="f-gross">سود/زیان ($)</label><input type="number" id="f-gross" step="0.01" placeholder="قبل از کمیسیون"></div>
+        </div>
+        <div class="calc-line" id="formCalcLine">Commission: $0.00 · Net: $0.00</div>
+
+        <details class="optional-fields"><summary>یادداشت‌ها، تصاویر و اطلاعات تکمیلی <span>اختیاری</span></summary><div class="optional-inner"><div class="form-grid-2">
+          <div class="field"><label for="f-idealrr">R:R ایده‌آل (در صورت وجود ستاپ بهتر)</label><input type="number" id="f-idealrr" step="0.1" min="0" placeholder="اختیاری"></div>
+          <div class="field" id="couldBeField"><label id="lbl-segCouldBe">می‌توانست سود/BE بشود؟</label>
+            <div class="seg" id="segCouldBe" role="group" aria-labelledby="lbl-segCouldBe">
+              <button type="button" data-val="yes" aria-pressed="false">بله</button>
+              <button type="button" data-val="no" data-tone="grey" aria-pressed="false">خیر</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="field"><label for="f-entryReason">دلیل ورود</label><textarea id="f-entryReason" placeholder="چرا وارد شدم..."></textarea></div>
+          <div class="field"><label for="f-exitReason">دلیل خروج</label><textarea id="f-exitReason" placeholder="چطور بستم، چی یاد گرفتم..."></textarea></div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px;"><label for="f-notes">نکات تکنیکال و روانشناسی</label><textarea id="f-notes" placeholder="نکات تکنیکال، حس و حال، اشتباهات یا نکاتی که باید یادم بمونه..."></textarea></div>
+
+        <div class="form-grid">
+          <div class="field"><label for="f-link15">لینک چارت ۱۵ دقیقه</label><input type="url" id="f-link15" placeholder="https://..."></div>
+          <div class="field"><label for="f-link1">لینک چارت ۱ دقیقه</label><input type="url" id="f-link1" placeholder="https://..."></div>
+        </div>
+
+        </div></details></fieldset><div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="cancelFormBtn">انصراف</button>
+          <button type="submit" class="btn btn-primary" id="submitFormBtn">ذخیره معامله</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="trades-list" id="tradesList"></div>
+  </section>
+
+  <!-- ================= PNL CALENDAR ================= -->
+  <section class="view" id="view-calendar">
+    <h1 class="page-title">PnL Calendar</h1>
+    <p class="page-sub">عملکرد روزانه‌ات را ماه به ماه مرور کن</p>
+
+    <div class="panel">
+      <div class="cal-toolbar">
+        <div class="cal-nav">
+          <button type="button" id="calPrevYear" title="سال قبل">«</button>
+          <button type="button" id="calPrevMonth" title="ماه قبل">‹</button>
+          <span class="cal-month en" id="calMonthLabel">—</span>
+          <button type="button" id="calNextMonth" title="ماه بعد">›</button>
+          <button type="button" id="calNextYear" title="سال بعد">»</button>
+          <button type="button" class="btn" id="calTodayBtn">امروز</button>
+          <button type="button" class="btn" id="calReportBtn">گزارش PDF</button>
+        </div>
+        <div class="cal-modes">
+          <div class="seg cal-mode-seg" id="calViewSeg">
+            <button type="button" data-val="month" class="on" aria-pressed="true">Month</button>
+            <button type="button" data-val="year" aria-pressed="false">Year</button>
+          </div>
+          <div class="seg cal-mode-seg" id="calModeSeg">
+            <button type="button" data-val="usd" class="on" aria-pressed="true">$</button>
+            <button type="button" data-val="r" aria-pressed="false">R</button>
+            <button type="button" data-val="pct" aria-pressed="false">%</button>
+          </div>
+          <div class="seg cal-mode-seg" id="calBalanceSeg">
+            <button type="button" data-val="initial" class="on" aria-pressed="true">Initial</button>
+            <button type="button" data-val="current" aria-pressed="false">Current</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cal-summary" id="calSummary"></div>
+
+    <div class="panel">
+      <div class="cal-weekdays en" id="calWeekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-year-grid" id="calYearGrid" style="display:none;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Performance by month</h3><span class="hint en" id="perfMonthHint">% OF INITIAL BALANCE</span></div>
+      <div class="perf-month-grid" id="perfMonthGrid"></div>
+    </div>
+  </section>
+
+  <!-- ================= CHECKLIST ================= -->
+  <section class="view" id="view-checklist">
+    <h1 class="page-title">Pre-Trade Checklist</h1>
+    <p class="page-sub" id="clPageSub">ابتدا ستاپ معامله را انتخاب کن، بعد مراحلش را تأیید کن</p>
+
+    <div class="setup-picker" id="setupPicker"></div>
+
+    <div class="panel checklist-panel hidden" id="checklistBody">
+      <div class="panel-head">
+        <h3 id="clSetupTitle">—</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="clChangeSetupBtn">تغییر ستاپ</button>
+      </div>
+      <div class="panel-head" style="margin-top:-6px;">
+        <h3 id="clProgressText" style="font-size:11.5px; color:var(--muted); font-weight:500;">۰ از ۰ مرحله</h3>
+        <span class="hint en">DISCIPLINE = FREEDOM</span>
+      </div>
+      <div class="cl-progress-track"><div class="cl-progress-fill" id="clProgressFill" style="width:0%"></div></div>
+      <div id="standaloneChecklist"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="clResetBtn">بازنشانی</button>
+        <button class="btn btn-primary" id="clGoJournalBtn">ثبت این معامله در ژورنال</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= AGGRESSIVE ENTRY GUIDE ================= -->
+
+<section class="view roadmap" id="view-roadmap" dir="rtl">
+<h1 class="page-title"><bdi dir="ltr">Roadmap</bdi></h1>
+<p class="page-sub">راهنمای استراتژی — منطق دو کیل‌زون و قاعدهٔ اصلی ورود</p>
+<div class="road-tabs" role="tablist" aria-label="راهنمای استراتژی"><button type="button" id="road-tab-rules" role="tab" aria-selected="true" aria-controls="road-rules" tabindex="0">قوانین و شماتیک</button><button type="button" id="road-tab-examples" role="tab" aria-selected="false" aria-controls="road-examples" tabindex="-1">نمونه‌تریدها <span>۸۶</span></button></div><div id="road-rules" role="tabpanel" aria-labelledby="road-tab-rules"><article class="panel road-overview"><h2>نقشه تصمیم‌گیری</h2><div class="road-flow"><div class="road-node">قیمت به <bdi dir="ltr">BSL</bdi> یا <bdi dir="ltr">SSL</bdi> می‌رسد</div><div class="road-arrow" aria-hidden="true">↓</div><div class="road-node">آیا حرکتِ رسیدن به سطح <bdi dir="ltr">FVG</bdi> دارد؟</div><div class="road-grid"><div class="road-branch"><b>بله</b><p>ریورسال روی این سطح لغو می‌شود.</p><p>تمرکز روی آخرین <bdi dir="ltr">FVG</bdi> و بررسی ورود با چک‌لیست.</p></div><div class="road-branch"><b>خیر</b><p>ریورسال قابل بررسی است.</p><p>برای ورود، تأییدهای چک‌لیست لازم است.</p></div></div></div>
+</article><article class="panel"><h2>دو کیل‌زون معاملاتی</h2>
+<p>همهٔ معاملات فقط در یکی از این دو بازهٔ زمانی نیویورک بررسی می‌شوند:</p>
+<ol class="road-copy-list"><li><bdi dir="ltr">08:30 – 11:00 NY</bdi> — کیل‌زون صبح، اولویت با <bdi dir="ltr">FVG</bdi></li>
+<li><bdi dir="ltr">11:00 – 15:00 NY</bdi> — کیل‌زون بعدازظهر، اولویت با سوئینگ‌ها (<bdi dir="ltr">BSL / SSL</bdi>)</li></ol></article>
+<article class="panel"><h2>قاعدهٔ اصلی (در هر دو کیل‌زون)</h2>
+<p>وقتی قیمت با یک لگ به سمت یک سطح لیکوییدیتی (<bdi dir="ltr">BSL</bdi> یا <bdi dir="ltr">SSL</bdi>) حرکت می‌کند، اول بررسی می‌کنیم که آیا روی مسیر آن لگ یک <bdi dir="ltr">FVG</bdi> ساخته شده یا نه:</p>
+<ol class="road-copy-list"><li>اگر لگ همراه با <bdi dir="ltr">FVG</bdi> بوده باشد، ریورسال روی همان سطح <strong class="road-emphasis">کنسل می‌شود</strong>. حالا خود <bdi dir="ltr">FVG</bdi> نقطهٔ مهم ماست و طبق چک‌لیست، ابتدا <bdi dir="ltr">iFVG</bdi> و سپس <bdi dir="ltr">CISD</bdi> را بررسی می‌کنیم و روی آن ورود می‌گیریم.</li>
+<li>اگر لگ بدون <bdi dir="ltr">FVG</bdi> بوده باشد، همان سطح <bdi dir="ltr">BSL / SSL</bdi> معتبر می‌ماند و مستقیم دنبال ریورسال روی آن هستیم.</li></ol>
+</article>
+<article class="panel"><h2><bdi dir="ltr">08:30 – 11:00</bdi> — اولویت با <bdi dir="ltr">FVG</bdi></h2>
+<p>در این بازه فقط <bdi dir="ltr">FVG</bdi> رسم می‌شود.</p>
+<p>هر سوئینگی (<bdi dir="ltr">BSL / SSL</bdi>) که خود قیمت در همین بازه ساخته باشد، کلاً بی‌اهمیت است و اصلاً روی آن حساب نمی‌کنیم.</p>
+<p>همیشه فقط <strong class="road-emphasis">آخرین <bdi dir="ltr">FVG</bdi></strong> این بازه برای ما مهم است، نه همهٔ <bdi dir="ltr">FVG</bdi>هایی که تشکیل شده‌اند.</p>
+<p class="road-note">این آخرین <bdi dir="ltr">FVG</bdi> معتبر می‌ماند تا وقتی قیمت به آن برگردد و از آن استفاده کنیم. این برگشت ممکن است داخل همان کیل‌زون اتفاق بیفتد، یا بماند تا کیل‌زون بعدازظهر. یعنی اعتبارش از بین نمی‌رود تا مصرف شود؛ نه اینکه حتماً باید به کیل‌زون بعد منتقل شود.</p>
+</article>
+<article class="panel"><h2><bdi dir="ltr">11:00 – 15:00</bdi> — اولویت با سوئینگ‌ها</h2>
+<p>از اینجا به بعد سوئینگ‌ها (<bdi dir="ltr">BSL / SSL</bdi>) اهمیت پیدا می‌کنند. همان قاعدهٔ اصلی دوباره اجرا می‌شود: اگر قیمت با <bdi dir="ltr">FVG</bdi> به سوئینگ رسیده باشد، ریورسال کنسل است؛ اگر بدون <bdi dir="ltr">FVG</bdi> رسیده باشد، دنبال ریورسال روی آن هستیم.</p>
+<p><bdi dir="ltr">FVG</bdi> باقی‌ماندهٔ معتبر از کیل‌زون صبح هم، اگر هنوز مصرف نشده باشد، در همین بازه قابل معامله است.</p>
+</article>
+<article class="panel"><h2>نشانهٔ تغییر روند</h2>
+<p>گاهی یک لگ قوی همراه با چند <bdi dir="ltr">FVG</bdi> به یک <bdi dir="ltr">BSL / SSL</bdi> می‌رسد. چون <bdi dir="ltr">FVG</bdi> داشته، طبق قاعده ریورسال کنسل است. اما اگر بعد از برخورد به آن سطح، قیمت برگردد و <strong class="road-emphasis">آخرین <bdi dir="ltr">FVG</bdi></strong> را پر کند و آن را به <bdi dir="ltr">iFVG</bdi> تبدیل کند، این نشانهٔ تغییر روند است و دوباره وارد بازی می‌شویم.</p>
+</article>
+<article class="panel"><h2>مسیر ورود در یک دقیقه</h2><ol class="road-steps"><li>تشکیل <bdi dir="ltr">iFVG</bdi></li><li>تأیید <bdi dir="ltr">CISD</bdi> پس از <bdi dir="ltr">iFVG</bdi></li><li>پولبک به <bdi dir="ltr">CISD</bdi></li><li>شکست <bdi dir="ltr">OB</bdi></li></ol><p class="road-note">تا <bdi dir="ltr">iFVG</bdi> انتخاب نشده باشد، دکمه <bdi dir="ltr">CISD</bdi> در مرحله چهارم غیرفعال است.</p></article>
+</div><div id="road-examples" role="tabpanel" aria-labelledby="road-tab-examples" hidden><div class="sample-grid"><button type="button" class="sample-card" data-sample="0" data-full="samples/trade-01.png" aria-label="بازکردن نمونه ترید 1"><img src="samples/trade-01-thumb.jpg" alt="چارت نمونه ترید 1" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">01</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="1" data-full="samples/trade-02.png" aria-label="بازکردن نمونه ترید 2"><img src="samples/trade-02-thumb.jpg" alt="چارت نمونه ترید 2" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">02</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="2" data-full="samples/trade-03.png" aria-label="بازکردن نمونه ترید 3"><img src="samples/trade-03-thumb.jpg" alt="چارت نمونه ترید 3" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">03</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="3" data-full="samples/trade-04.png" aria-label="بازکردن نمونه ترید 4"><img src="samples/trade-04-thumb.jpg" alt="چارت نمونه ترید 4" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">04</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="4" data-full="samples/trade-05.png" aria-label="بازکردن نمونه ترید 5"><img src="samples/trade-05-thumb.jpg" alt="چارت نمونه ترید 5" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">05</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="5" data-full="samples/trade-06.png" aria-label="بازکردن نمونه ترید 6"><img src="samples/trade-06-thumb.jpg" alt="چارت نمونه ترید 6" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">06</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="6" data-full="samples/trade-07.png" aria-label="بازکردن نمونه ترید 7"><img src="samples/trade-07-thumb.jpg" alt="چارت نمونه ترید 7" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">07</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="7" data-full="samples/trade-08.png" aria-label="بازکردن نمونه ترید 8"><img src="samples/trade-08-thumb.jpg" alt="چارت نمونه ترید 8" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">08</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="8" data-full="samples/trade-09.png" aria-label="بازکردن نمونه ترید 9"><img src="samples/trade-09-thumb.jpg" alt="چارت نمونه ترید 9" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">09</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="9" data-full="samples/trade-10.png" aria-label="بازکردن نمونه ترید 10"><img src="samples/trade-10-thumb.jpg" alt="چارت نمونه ترید 10" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">10</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="10" data-full="samples/trade-11.png" aria-label="بازکردن نمونه ترید 11"><img src="samples/trade-11-thumb.jpg" alt="چارت نمونه ترید 11" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">11</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="11" data-full="samples/trade-12.png" aria-label="بازکردن نمونه ترید 12"><img src="samples/trade-12-thumb.jpg" alt="چارت نمونه ترید 12" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">12</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="12" data-full="samples/trade-13.png" aria-label="بازکردن نمونه ترید 13"><img src="samples/trade-13-thumb.jpg" alt="چارت نمونه ترید 13" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">13</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="13" data-full="samples/trade-14.png" aria-label="بازکردن نمونه ترید 14"><img src="samples/trade-14-thumb.jpg" alt="چارت نمونه ترید 14" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">14</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="14" data-full="samples/trade-15.png" aria-label="بازکردن نمونه ترید 15"><img src="samples/trade-15-thumb.jpg" alt="چارت نمونه ترید 15" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">15</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="15" data-full="samples/trade-16.png" aria-label="بازکردن نمونه ترید 16"><img src="samples/trade-16-thumb.jpg" alt="چارت نمونه ترید 16" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">16</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="16" data-full="samples/trade-17.png" aria-label="بازکردن نمونه ترید 17"><img src="samples/trade-17-thumb.jpg" alt="چارت نمونه ترید 17" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">17</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="17" data-full="samples/trade-18.png" aria-label="بازکردن نمونه ترید 18"><img src="samples/trade-18-thumb.jpg" alt="چارت نمونه ترید 18" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">18</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="18" data-full="samples/trade-19.png" aria-label="بازکردن نمونه ترید 19"><img src="samples/trade-19-thumb.jpg" alt="چارت نمونه ترید 19" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">19</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="19" data-full="samples/trade-20.png" aria-label="بازکردن نمونه ترید 20"><img src="samples/trade-20-thumb.jpg" alt="چارت نمونه ترید 20" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">20</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="20" data-full="samples/trade-21.png" aria-label="بازکردن نمونه ترید 21"><img src="samples/trade-21-thumb.jpg" alt="چارت نمونه ترید 21" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">21</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="21" data-full="samples/trade-22.png" aria-label="بازکردن نمونه ترید 22"><img src="samples/trade-22-thumb.jpg" alt="چارت نمونه ترید 22" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">22</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="22" data-full="samples/trade-23.png" aria-label="بازکردن نمونه ترید 23"><img src="samples/trade-23-thumb.jpg" alt="چارت نمونه ترید 23" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">23</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="23" data-full="samples/trade-24.png" aria-label="بازکردن نمونه ترید 24"><img src="samples/trade-24-thumb.jpg" alt="چارت نمونه ترید 24" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">24</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="24" data-full="samples/trade-25.png" aria-label="بازکردن نمونه ترید 25"><img src="samples/trade-25-thumb.jpg" alt="چارت نمونه ترید 25" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">25</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="25" data-full="samples/trade-26.png" aria-label="بازکردن نمونه ترید 26"><img src="samples/trade-26-thumb.jpg" alt="چارت نمونه ترید 26" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">26</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="26" data-full="samples/trade-27.png" aria-label="بازکردن نمونه ترید 27"><img src="samples/trade-27-thumb.jpg" alt="چارت نمونه ترید 27" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">27</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="27" data-full="samples/trade-28.png" aria-label="بازکردن نمونه ترید 28"><img src="samples/trade-28-thumb.jpg" alt="چارت نمونه ترید 28" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">28</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="28" data-full="samples/trade-29.png" aria-label="بازکردن نمونه ترید 29"><img src="samples/trade-29-thumb.jpg" alt="چارت نمونه ترید 29" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">29</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="29" data-full="samples/trade-30.png" aria-label="بازکردن نمونه ترید 30"><img src="samples/trade-30-thumb.jpg" alt="چارت نمونه ترید 30" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">30</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="30" data-full="samples/trade-31.png" aria-label="بازکردن نمونه ترید 31"><img src="samples/trade-31-thumb.jpg" alt="چارت نمونه ترید 31" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">31</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="31" data-full="samples/trade-32.png" aria-label="بازکردن نمونه ترید 32"><img src="samples/trade-32-thumb.jpg" alt="چارت نمونه ترید 32" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">32</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="32" data-full="samples/trade-33.png" aria-label="بازکردن نمونه ترید 33"><img src="samples/trade-33-thumb.jpg" alt="چارت نمونه ترید 33" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">33</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="33" data-full="samples/trade-34.png" aria-label="بازکردن نمونه ترید 34"><img src="samples/trade-34-thumb.jpg" alt="چارت نمونه ترید 34" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">34</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="34" data-full="samples/trade-35.png" aria-label="بازکردن نمونه ترید 35"><img src="samples/trade-35-thumb.jpg" alt="چارت نمونه ترید 35" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">35</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="35" data-full="samples/trade-36.png" aria-label="بازکردن نمونه ترید 36"><img src="samples/trade-36-thumb.jpg" alt="چارت نمونه ترید 36" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">36</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="36" data-full="samples/trade-37.png" aria-label="بازکردن نمونه ترید 37"><img src="samples/trade-37-thumb.jpg" alt="چارت نمونه ترید 37" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">37</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="37" data-full="samples/trade-38.png" aria-label="بازکردن نمونه ترید 38"><img src="samples/trade-38-thumb.jpg" alt="چارت نمونه ترید 38" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">38</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="38" data-full="samples/trade-39.png" aria-label="بازکردن نمونه ترید 39"><img src="samples/trade-39-thumb.jpg" alt="چارت نمونه ترید 39" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">39</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="39" data-full="samples/trade-40.png" aria-label="بازکردن نمونه ترید 40"><img src="samples/trade-40-thumb.jpg" alt="چارت نمونه ترید 40" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">40</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="40" data-full="samples/trade-41.png" aria-label="بازکردن نمونه ترید 41"><img src="samples/trade-41-thumb.jpg" alt="چارت نمونه ترید 41" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">41</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="41" data-full="samples/trade-42.png" aria-label="بازکردن نمونه ترید 42"><img src="samples/trade-42-thumb.jpg" alt="چارت نمونه ترید 42" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">42</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="42" data-full="samples/trade-43.png" aria-label="بازکردن نمونه ترید 43"><img src="samples/trade-43-thumb.jpg" alt="چارت نمونه ترید 43" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">43</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="43" data-full="samples/trade-44.png" aria-label="بازکردن نمونه ترید 44"><img src="samples/trade-44-thumb.jpg" alt="چارت نمونه ترید 44" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">44</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="44" data-full="samples/trade-45.png" aria-label="بازکردن نمونه ترید 45"><img src="samples/trade-45-thumb.jpg" alt="چارت نمونه ترید 45" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">45</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="45" data-full="samples/trade-46.png" aria-label="بازکردن نمونه ترید 46"><img src="samples/trade-46-thumb.jpg" alt="چارت نمونه ترید 46" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">46</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="46" data-full="samples/trade-47.png" aria-label="بازکردن نمونه ترید 47"><img src="samples/trade-47-thumb.jpg" alt="چارت نمونه ترید 47" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">47</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="47" data-full="samples/trade-48.png" aria-label="بازکردن نمونه ترید 48"><img src="samples/trade-48-thumb.jpg" alt="چارت نمونه ترید 48" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">48</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="48" data-full="samples/trade-49.png" aria-label="بازکردن نمونه ترید 49"><img src="samples/trade-49-thumb.jpg" alt="چارت نمونه ترید 49" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">49</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="49" data-full="samples/trade-50.png" aria-label="بازکردن نمونه ترید 50"><img src="samples/trade-50-thumb.jpg" alt="چارت نمونه ترید 50" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">50</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="50" data-full="samples/trade-51.png" aria-label="بازکردن نمونه ترید 51"><img src="samples/trade-51-thumb.jpg" alt="چارت نمونه ترید 51" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">51</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="51" data-full="samples/trade-52.png" aria-label="بازکردن نمونه ترید 52"><img src="samples/trade-52-thumb.jpg" alt="چارت نمونه ترید 52" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">52</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="52" data-full="samples/trade-53.png" aria-label="بازکردن نمونه ترید 53"><img src="samples/trade-53-thumb.jpg" alt="چارت نمونه ترید 53" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">53</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="53" data-full="samples/trade-54.png" aria-label="بازکردن نمونه ترید 54"><img src="samples/trade-54-thumb.jpg" alt="چارت نمونه ترید 54" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">54</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="54" data-full="samples/trade-55.png" aria-label="بازکردن نمونه ترید 55"><img src="samples/trade-55-thumb.jpg" alt="چارت نمونه ترید 55" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">55</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="55" data-full="samples/trade-56.png" aria-label="بازکردن نمونه ترید 56"><img src="samples/trade-56-thumb.jpg" alt="چارت نمونه ترید 56" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">56</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="56" data-full="samples/trade-57.png" aria-label="بازکردن نمونه ترید 57"><img src="samples/trade-57-thumb.jpg" alt="چارت نمونه ترید 57" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">57</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="57" data-full="samples/trade-58.png" aria-label="بازکردن نمونه ترید 58"><img src="samples/trade-58-thumb.jpg" alt="چارت نمونه ترید 58" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">58</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="58" data-full="samples/trade-59.png" aria-label="بازکردن نمونه ترید 59"><img src="samples/trade-59-thumb.jpg" alt="چارت نمونه ترید 59" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">59</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="59" data-full="samples/trade-60.png" aria-label="بازکردن نمونه ترید 60"><img src="samples/trade-60-thumb.jpg" alt="چارت نمونه ترید 60" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">60</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="60" data-full="samples/trade-61.png" aria-label="بازکردن نمونه ترید 61"><img src="samples/trade-61-thumb.jpg" alt="چارت نمونه ترید 61" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">61</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="61" data-full="samples/trade-62.png" aria-label="بازکردن نمونه ترید 62"><img src="samples/trade-62-thumb.jpg" alt="چارت نمونه ترید 62" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">62</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="62" data-full="samples/trade-63.png" aria-label="بازکردن نمونه ترید 63"><img src="samples/trade-63-thumb.jpg" alt="چارت نمونه ترید 63" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">63</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="63" data-full="samples/trade-64.png" aria-label="بازکردن نمونه ترید 64"><img src="samples/trade-64-thumb.jpg" alt="چارت نمونه ترید 64" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">64</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="64" data-full="samples/trade-65.png" aria-label="بازکردن نمونه ترید 65"><img src="samples/trade-65-thumb.jpg" alt="چارت نمونه ترید 65" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">65</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="65" data-full="samples/trade-66.png" aria-label="بازکردن نمونه ترید 66"><img src="samples/trade-66-thumb.jpg" alt="چارت نمونه ترید 66" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">66</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="66" data-full="samples/trade-67.png" aria-label="بازکردن نمونه ترید 67"><img src="samples/trade-67-thumb.jpg" alt="چارت نمونه ترید 67" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">67</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="67" data-full="samples/trade-68.png" aria-label="بازکردن نمونه ترید 68"><img src="samples/trade-68-thumb.jpg" alt="چارت نمونه ترید 68" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">68</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="68" data-full="samples/trade-69.png" aria-label="بازکردن نمونه ترید 69"><img src="samples/trade-69-thumb.jpg" alt="چارت نمونه ترید 69" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">69</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="69" data-full="samples/trade-70.png" aria-label="بازکردن نمونه ترید 70"><img src="samples/trade-70-thumb.jpg" alt="چارت نمونه ترید 70" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">70</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="70" data-full="samples/trade-71.png" aria-label="بازکردن نمونه ترید 71"><img src="samples/trade-71-thumb.jpg" alt="چارت نمونه ترید 71" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">71</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="71" data-full="samples/trade-72.png" aria-label="بازکردن نمونه ترید 72"><img src="samples/trade-72-thumb.jpg" alt="چارت نمونه ترید 72" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">72</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="72" data-full="samples/trade-73.png" aria-label="بازکردن نمونه ترید 73"><img src="samples/trade-73-thumb.jpg" alt="چارت نمونه ترید 73" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">73</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="73" data-full="samples/trade-74.png" aria-label="بازکردن نمونه ترید 74"><img src="samples/trade-74-thumb.jpg" alt="چارت نمونه ترید 74" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">74</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="74" data-full="samples/trade-75.png" aria-label="بازکردن نمونه ترید 75"><img src="samples/trade-75-thumb.jpg" alt="چارت نمونه ترید 75" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">75</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="75" data-full="samples/trade-76.png" aria-label="بازکردن نمونه ترید 76"><img src="samples/trade-76-thumb.jpg" alt="چارت نمونه ترید 76" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">76</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="76" data-full="samples/trade-77.png" aria-label="بازکردن نمونه ترید 77"><img src="samples/trade-77-thumb.jpg" alt="چارت نمونه ترید 77" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">77</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="77" data-full="samples/trade-78.png" aria-label="بازکردن نمونه ترید 78"><img src="samples/trade-78-thumb.jpg" alt="چارت نمونه ترید 78" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">78</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="78" data-full="samples/trade-79.png" aria-label="بازکردن نمونه ترید 79"><img src="samples/trade-79-thumb.jpg" alt="چارت نمونه ترید 79" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">79</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="79" data-full="samples/trade-80.png" aria-label="بازکردن نمونه ترید 80"><img src="samples/trade-80-thumb.jpg" alt="چارت نمونه ترید 80" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">80</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="80" data-full="samples/trade-81.png" aria-label="بازکردن نمونه ترید 81"><img src="samples/trade-81-thumb.jpg" alt="چارت نمونه ترید 81" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">81</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="81" data-full="samples/trade-82.png" aria-label="بازکردن نمونه ترید 82"><img src="samples/trade-82-thumb.jpg" alt="چارت نمونه ترید 82" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">82</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="82" data-full="samples/trade-83.png" aria-label="بازکردن نمونه ترید 83"><img src="samples/trade-83-thumb.jpg" alt="چارت نمونه ترید 83" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">83</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="83" data-full="samples/trade-84.png" aria-label="بازکردن نمونه ترید 84"><img src="samples/trade-84-thumb.jpg" alt="چارت نمونه ترید 84" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">84</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="84" data-full="samples/trade-85.png" aria-label="بازکردن نمونه ترید 85"><img src="samples/trade-85-thumb.jpg" alt="چارت نمونه ترید 85" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">85</bdi><span aria-hidden="true">↗</span></span></button><button type="button" class="sample-card" data-sample="85" data-full="samples/trade-86.png" aria-label="بازکردن نمونه ترید 86"><img src="samples/trade-86-thumb.jpg" alt="چارت نمونه ترید 86" loading="lazy" decoding="async" width="2759" height="992"><span>نمونه ترید <bdi dir="ltr">86</bdi><span aria-hidden="true">↗</span></span></button></div></div></section>
+  <section class="view" id="view-account">
+    <h1 class="page-title">Account</h1>
+    <p class="page-sub">موجودی، کمیسیون و پشتیبان‌گیری</p>
+
+    <div class="panel">
+      <div class="panel-head"><h3>موجودی اولیه حساب</h3></div>
+      <input type="number" id="acc-initial" step="1" style="width:100%; background:var(--bg-2); border:1px solid var(--line); border-radius:9px; padding:8px 10px;">
+    </div>
+
+    <div class="panel balance-box">
+      <div class="balance-amount en" id="acc-balance">$0</div>
+      <div class="balance-label">موجودی فعلی</div>
+      <div class="balance-breakdown" id="acc-breakdown"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>کمیسیون بروکر (به ازای هر ۱ لات)</h3></div>
+      <input type="number" id="acc-commission" step="0.1" style="width:100%; background:var(--bg-2); border:1px solid var(--line); border-radius:9px; padding:8px 10px;">
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>پشتیبان‌گیری و خروجی</h3></div>
+      <p class="field-desc">برای انتقال یا آرشیو معاملات، خروجی بگیر.</p>
+      <div class="backup-actions">
+        <button class="btn" id="exportBtn">خروجی JSON</button>
+        <button class="btn" id="exportCsvBtn">خروجی CSV (اکسل)</button>
+        <button class="btn" id="reportBtn">گزارش PDF ماهانه</button>
+        <button class="btn" id="importBtn">ایمپورت / ادغام</button>
+        <input type="file" id="importFile" accept="application/json,.json,.csv,text/csv" style="display:none">
+        <button class="btn btn-danger" id="clearAllBtn">حذف همه داده‌ها</button>
+      </div>
+      <div class="mini-note">
+        CSV با جداکنندهٔ <code>,</code> و BOM ساخته می‌شود تا اکسل فارسی/آلمانی درست بازش کند.
+        گزارش PDF از پنجرهٔ چاپ مرورگر ساخته می‌شود؛ در مقصد «Save as PDF» را انتخاب کن.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>پروفایل کاربری</h3></div>
+      <div class="profile-edit-row">
+        <label class="profile-edit-avatar" id="profileEditAvatarWrap" title="تغییر عکس پروفایل">
+          <span class="profile-edit-avatar-inner" id="profileEditAvatar">?</span>
+          <input type="file" id="avatarInput" accept="image/*" style="display:none;">
+          <span class="profile-edit-avatar-hint">تغییر عکس</span>
+        </label>
+        <div class="profile-edit-fields">
+          <div class="field" style="margin-bottom:10px;">
+            <label for="profile-name-input">نام نمایشی</label>
+            <input type="text" id="profile-name-input" placeholder="نام و نام خانوادگی">
+          </div>
+          <div class="mini-note" id="profile-email-display"></div>
+        </div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" id="saveProfileBtn">ذخیرهٔ پروفایل</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>حساب کاربری و ذخیرهٔ ابری</h3><span class="hint en">SUPABASE</span></div>
+      <div class="sync-state"><span class="sync-dot" id="syncDot"></span><span id="syncStatus">متصل نیست</span></div>
+      <div class="backup-actions">
+        <button class="btn btn-danger" id="logoutBtn">خروج از حساب</button>
+      </div>
+      <div class="mini-note">
+        معاملات و تنظیمات این حساب به‌صورت خودکار در پایگاه‌دادهٔ ابری (Supabase) ذخیره می‌شوند و با ورود از هر دستگاه دیگری در دسترس‌اند.
+      </div>
+    </div>
+
+    <div class="form-actions"><button class="btn btn-primary" id="saveSettingsBtn">ذخیره تنظیمات</button></div>
+  </section>
+
+</main>
+</div>
+
+<div class="modal-back" id="modalBack" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h3 id="modalTitle">—</h3>
+    <div class="msub" id="modalSub"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script src="app.js?v=13"></script>
+<script src="ui-enhance.js?v=13"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+<dialog id="sampleViewer" aria-label="نمایش نمونه ترید"><div class="viewer-shell"><header class="viewer-toolbar"><strong id="sampleTitle"></strong><div class="viewer-controls"><button type="button" id="sampleZoomOut" aria-label="کوچک‌نمایی">−</button><output id="sampleZoomValue" dir="ltr">100%</output><button type="button" id="sampleZoomIn" aria-label="بزرگ‌نمایی">+</button><button type="button" id="sampleFit">اندازه مناسب</button><button type="button" id="sampleClose" aria-label="بستن تصویر">✕</button></div></header><div id="sampleStage" tabindex="0" aria-label="تصویر؛ برای جابه‌جایی پس از زوم بکشید"><div id="sampleCanvas"><img id="sampleImage" alt="" draggable="false"></div><p id="sampleError" hidden>تصویر بارگذاری نشد. دوباره تلاش کنید.</p></div><footer class="viewer-footer" dir="ltr"><button type="button" id="samplePrevious">← قبلی</button><span id="sampleCounter"></span><button type="button" id="sampleNext">بعدی →</button></footer></div></dialog><script src="ux.js?v=13"></script></body>
+</html>
