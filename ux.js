@@ -16,6 +16,12 @@ window.organizePerformance=function(host,expanded){
  }
 };
 function ready(){
+ document.querySelectorAll('.sample-card').forEach(card=>{
+  const preview=card.querySelector('img');
+  const recover=()=>{if(preview.dataset.fallback==='1'){preview.alt='پیش‌نمایش در دسترس نیست؛ برای بازکردن تصویر کلیک کنید';return;}preview.dataset.fallback='1';preview.src=card.dataset.full;};
+  preview.addEventListener('error',recover);
+  if(preview.complete&&preview.naturalWidth===0)recover();
+ });
  const tabs=[document.getElementById('road-tab-rules'),document.getElementById('road-tab-examples')];
  function activate(index){tabs.forEach((tab,i)=>{const selected=i===index;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;document.getElementById(tab.getAttribute('aria-controls')).hidden=!selected;});}
  tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activate(index));tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowLeft'||e.key==='ArrowRight')next=1-index;else if(e.key==='Home')next=0;else if(e.key==='End')next=1;else return;e.preventDefault();activate(next);tabs[next].focus();});});
