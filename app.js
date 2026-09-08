@@ -378,6 +378,11 @@ function shiftISO(iso, days, months){
 ============================================================ */
 let trades = [];
 let settings = { initialBalance:10000, commissionPerLot:5 };
+let tradingAccounts = [];
+let activeTradingAccountId = null;
+let accountDataReady = false;
+let pendingCloudSaves = 0;
+let cloudSaveQueue = Promise.resolve();
 let editingTradeId = null;
 let standaloneChecklistState = { standard:{} };
 let formChecklistState = {};
@@ -795,6 +800,7 @@ document.getElementById('cancelFormBtn').addEventListener('click', ()=>{
 
 document.getElementById('tradeForm').addEventListener('submit', async e=>{
   e.preventDefault();
+  if(pendingCloudSaves || !accountDataReady){showToast('لطفاً تا پایان ذخیره صبر کنید.');return;}
   const result = getSeg('segResult') || 'win';
   const rrRaw = Math.abs(Number(document.getElementById('f-rr').value)||0);
   let rr = 0;
@@ -1592,6 +1598,7 @@ document.getElementById('clGoJournalBtn').addEventListener('click', ()=>{
    ACCOUNT
 ============================================================ */
 function populateAccountFields(){
+  populateTradingAccountFields();
   document.getElementById('acc-initial').value = settings.initialBalance;
   document.getElementById('acc-commission').value = settings.commissionPerLot;
   const note = document.getElementById('acc-email-note');
@@ -1613,6 +1620,7 @@ function renderAccountPreview(){
 document.getElementById('acc-initial').addEventListener('input', renderAccountPreview);
 document.getElementById('acc-commission').addEventListener('input', renderAccountPreview);
 document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
+  if(!saveTradingAccountFields()) return;
   settings.initialBalance = Number(document.getElementById('acc-initial').value)||0;
   settings.commissionPerLot = Number(document.getElementById('acc-commission').value)||0;
   const localOk = saveSettings(settings);
@@ -1623,14 +1631,14 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
 });
 
 function clearAllData(){
-  if(!confirm('همه‌ی معاملات و تنظیمات حذف شود؟')) return;
+  if(!confirm('معاملات و تنظیمات حساب معاملاتی فعال پاک شود؟ سایر حساب‌ها تغییر نمی‌کنند.')) return;
   trades=[]; settings={ ...DEFAULT_SETTINGS };
   commitTrades(); saveSettings(settings);
   populateAccountFields(); refreshAll();
   showToast('همه‌ی داده‌ها پاک شد');
 }
 function clearTradesOnly(){
-  if(!confirm('همه‌ی معاملات حذف شود؟ تنظیمات حساب می‌ماند.')) return;
+  if(!confirm('همه معاملات حساب معاملاتی فعال حذف شود؟ سایر حساب‌ها تغییر نمی‌کنند.')) return;
   trades=[]; commitTrades();
   refreshAll();
   showToast('همه‌ی معاملات پاک شد');
@@ -1662,7 +1670,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
    EXPORT — JSON & CSV
 ============================================================ */
 function snapshot(){
-  return { schemaVersion:SCHEMA_VERSION, settings, trades, exportedAt:new Date().toISOString() };
+  return { schemaVersion:SCHEMA_VERSION, account: {id:activeTradingAccountId,name:activeTradingAccount()?.name||'حساب اصلی'}, settings, trades, exportedAt:new Date().toISOString() };
 }
 function downloadBlob(content, filename, mime){
   const blob = new Blob([content], { type:mime });
@@ -1825,6 +1833,7 @@ async function importDataFromFile(file){
       incoming = parseCsvTrades(text);
     } else {
       const data = JSON.parse(text);
+      if(data && Array.isArray(data.accounts)){ importTradingAccounts(data); return; }
       if(Array.isArray(data)) incoming = data;
       else if(data && Array.isArray(data.trades)){ incoming = data.trades; importedSettings = data.settings || null; }
       else throw new Error('invalid');
@@ -2057,48 +2066,38 @@ let supaRowId = null;
 let supaSyncTimer = null;
 
 function scheduleAutoSync(){
-  if(!currentUser) return Promise.resolve(true);
-  /* Fire right away (no debounce): the app only calls this after discrete
-     actions (submit/edit/delete a trade, save settings), not on every
-     keystroke, so there's no flood risk — and immediate saving means a
-     quick refresh right after saving a trade can never lose it. */
-  clearTimeout(supaSyncTimer);
-  return syncToSupabase(true);
+  const localOk=persistTradingAccounts();
+  if(!currentUser || !accountDataReady) return Promise.resolve(localOk);
+  const owner=currentUser.id;
+  const payload=tradingAccountPayload();
+  pendingCloudSaves++;updateAccountBusy();
+  const job=cloudSaveQueue.then(()=>syncToSupabase(true,payload,owner));
+  cloudSaveQueue=job.catch(()=>false);
+  return job.then(ok=>localOk&&ok).finally(()=>{pendingCloudSaves--;updateAccountBusy();});
 }
-
-async function syncToSupabase(silent){
-  if(!currentUser) return true;
+async function syncToSupabase(silent,payload,owner){
+  if(!currentUser || currentUser.id!==owner || !accountDataReady)return false;
   try{
-    setSyncStatus('در حال ذخیره در سرور…');
-    const payload = { trades, settings, syncedAt:new Date().toISOString() };
+    setSyncStatus('در حال ذخیره حساب‌ها…');
     if(supaRowId){
-      const { error } = await supabaseClient.from('trades')
-        .update({ trade_data: payload })
-        .eq('id', supaRowId);
-      if(error) throw error;
-    } else {
-      const { data, error } = await supabaseClient.from('trades')
-        .insert({ user_id: currentUser.id, trade_data: payload })
-        .select('id')
-        .single();
-      if(error) throw error;
-      supaRowId = data.id;
+      const {error}=await supabaseClient.from('trades').update({trade_data:payload}).eq('id',supaRowId).eq('user_id',owner);
+      if(error)throw error;
+    }else{
+      const {data,error}=await supabaseClient.from('trades').insert({user_id:owner,trade_data:payload}).select('id').single();
+      if(error)throw error;
+      if(currentUser?.id===owner)supaRowId=data.id;
     }
-    setSyncStatus('همگام با سرور ✓', 'ok');
-    if(!silent) showToast('در سرور ذخیره شد ✓');
+    if(currentUser?.id===owner)setSyncStatus('همگام با سرور ✓','ok');
     return true;
-  }catch(e){
-    console.error('Supabase sync failed', e);
-    setSyncStatus('ذخیره در سرور ناموفق بود', 'err');
-    if(!silent) showToast('ذخیره در سرور ناموفق بود');
-    return false;
-  }
+  }catch(e){console.error('Account sync failed',e);setSyncStatus('ذخیره ابری ناموفق؛ نسخه محلی حفظ شد','err');return false;}
 }
 
 /* Called right after login/signup and on an existing session. Pulls this
    user's row (if any) and replaces the local trades/settings with it. */
 async function loadUserTrades(){
   if(!currentUser) return;
+  accountDataReady=false;updateAccountBusy();
+  tradingAccounts=[];activeTradingAccountId=null;
   /* Always start from a clean slate: this browser's localStorage cache may
      hold another user's data from a previous session on the same device. */
   trades = [];
@@ -2117,9 +2116,10 @@ async function loadUserTrades(){
     if(data){
       supaRowId = data.id;
       const payload = data.trade_data || {};
-      if(Array.isArray(payload.trades)) trades = payload.trades.map(migrateTrade);
-      if(payload.settings) settings = Object.assign({}, DEFAULT_SETTINGS, payload.settings);
+      loadTradingAccountPayload(payload);
     }
+    if(!tradingAccounts.length)loadTradingAccountPayload({trades:[],settings:{...DEFAULT_SETTINGS}});
+    accountDataReady=true;renderTradingAccountPicker();
     setSyncStatus('متصل — ' + (currentUser.email||''), 'ok');
   }catch(e){
     console.error('Supabase load failed', e);
@@ -2133,6 +2133,7 @@ async function loadUserTrades(){
   rebuildIndex();
   saveTrades(trades);
   saveSettings(settings);
+  persistTradingAccounts();
   refreshAll();
   renderStandaloneChecklist();
   populateAccountFields();
@@ -2175,6 +2176,7 @@ document.getElementById('themeSwitch').addEventListener('click', e=>{
    KEYBOARD SHORTCUTS (desktop)
 ============================================================ */
 document.addEventListener('keydown', e=>{
+  if(document.getElementById('addAccountDialog')?.open)return;
   if(e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA' || e.target.tagName==='SELECT') return;
   if(document.getElementById('modalBack').classList.contains('on')) return;
   const views = ['dashboard','journal','calendar','checklist','roadmap','account'];
@@ -2190,10 +2192,9 @@ document.addEventListener('keydown', e=>{
 });
 function init(){
   applyTheme(loadTheme());
-  settings = loadSettings();
-  trades = loadTrades().map(migrateTrade);
+  loadTradingAccountPayload({settings:{...DEFAULT_SETTINGS},trades:[]});
   rebuildIndex();
-  commitTrades();          /* re-save migrated data and build index */
+  renderTradingAccountPicker();
   resetForm();
   renderStandaloneChecklist();
   populateAccountFields();
@@ -2276,3 +2277,94 @@ function aggregateEquity(ann){
 }
 document.getElementById('equityGranularity').addEventListener('click',e=>{const b=e.target.closest('[data-grain]');if(!b)return;document.querySelectorAll('#equityGranularity button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b));});renderDashboard();});
 document.getElementById('beThreshold').addEventListener('change',e=>{if(Number(e.target.value)<0)e.target.value='0';renderDashboard();});
+
+/* Independent trading accounts stored together in the existing user's JSON row. */
+function activeTradingAccount(){return tradingAccounts.find(a=>a.id===activeTradingAccountId);}
+function checkpointTradingAccount(){const a=activeTradingAccount();if(a){a.trades=trades;a.settings=settings;}}
+function normalizeTradingAccounts(payload){
+ const source=Array.isArray(payload.accounts)?payload.accounts:[{id:'primary',name:'حساب اصلی',trades:Array.isArray(payload.trades)?payload.trades:[],settings:payload.settings||DEFAULT_SETTINGS}];
+ if(!source.length)throw new Error('فهرست حساب‌ها خالی است');
+ const seen=new Set();
+ return source.map((a,i)=>{
+  if(!a||typeof a!=='object'||!Array.isArray(a.trades))throw new Error('ساختار حساب نامعتبر است');
+  let id=typeof a.id==='string'&&a.id?a.id:uid();if(seen.has(id))throw new Error('شناسه حساب تکراری است');seen.add(id);
+  const conf={...DEFAULT_SETTINGS,...(a.settings||{})};
+  for(const key of ['initialBalance','commissionPerLot']){if(!Number.isFinite(Number(conf[key]))||Number(conf[key])<0)throw new Error('تنظیمات عددی حساب نامعتبر است');conf[key]=Number(conf[key]);}
+  return {id,name:String(a.name||('حساب '+(i+1))).slice(0,80),firm:String(a.firm||'').slice(0,80),stage:['evaluation','funded','personal'].includes(a.stage)?a.stage:'evaluation',settings:conf,trades:a.trades.map(migrateTrade)};
+ });
+}
+function loadTradingAccountPayload(payload){
+ const list=normalizeTradingAccounts(payload);const id=list.some(a=>a.id===payload.activeAccountId)?payload.activeAccountId:list[0].id;
+ tradingAccounts=list;activeTradingAccountId=id;const active=activeTradingAccount();trades=active.trades;settings=active.settings;
+}
+function tradingAccountPayload(){checkpointTradingAccount();return JSON.parse(JSON.stringify({accountSchema:1,accounts:tradingAccounts,activeAccountId:activeTradingAccountId,trades,settings,syncedAt:new Date().toISOString()}));}
+function persistTradingAccounts(){
+ checkpointTradingAccount();if(!currentUser||!accountDataReady)return true;
+ try{localStorage.setItem('ss:accounts:'+currentUser.id,JSON.stringify(tradingAccountPayload()));return true;}
+ catch(e){flagStorageProblem('ذخیره محلی حساب‌ها ممکن نشد. از گزینه پشتیبان همه حساب‌ها خروجی بگیرید.');return false;}
+}
+function updateAccountBusy(){
+ const busy=!accountDataReady||pendingCloudSaves>0;
+ ['tradingAccountSelect','addTradingAccountBtn','createAccountSubmit','saveSettingsBtn','submitFormBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=busy;});
+}
+function renderTradingAccountPicker(){
+ const select=document.getElementById('tradingAccountSelect');if(!select)return;
+ select.innerHTML=tradingAccounts.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}${a.firm?' · '+esc(a.firm):''}</option>`).join('');select.value=activeTradingAccountId;updateAccountBusy();
+}
+function populateTradingAccountFields(){
+ const a=activeTradingAccount();if(!a)return;
+ for(const [id,value] of [['acc-name',a.name],['acc-firm',a.firm],['acc-stage',a.stage],['acc-target',settings.profitTargetPct],['acc-dailyLoss',settings.dailyLossPct],['acc-totalLoss',settings.totalLossPct]]){const el=document.getElementById(id);if(el)el.value=value??'';}
+ renderTradingAccountPicker();
+}
+function saveTradingAccountFields(){
+ const a=activeTradingAccount();if(!a||!accountDataReady||pendingCloudSaves)return false;
+ const name=document.getElementById('acc-name').value.trim();if(!name){showToast('نام حساب را وارد کنید.');document.getElementById('acc-name').focus();return false;}
+ for(const id of ['acc-initial','acc-commission','acc-target','acc-dailyLoss','acc-totalLoss']){const el=document.getElementById(id);if(!el.reportValidity()||el.value!==''&&(!Number.isFinite(Number(el.value))||Number(el.value)<0)){showToast('مقادیر حساب باید عدد صفر یا مثبت باشند.');return false;}}
+ a.name=name;a.firm=document.getElementById('acc-firm').value.trim();a.stage=document.getElementById('acc-stage').value;
+ for(const [key,id] of [['profitTargetPct','acc-target'],['dailyLossPct','acc-dailyLoss'],['totalLossPct','acc-totalLoss']]){const value=document.getElementById(id).value;settings[key]=value===''?null:Number(value);}
+ return true;
+}
+function canLeaveTradingAccount(){
+ const a=activeTradingAccount();
+ if(a){const fields=[['acc-name',a.name],['acc-firm',a.firm],['acc-stage',a.stage],['acc-initial',settings.initialBalance],['acc-commission',settings.commissionPerLot],['acc-target',settings.profitTargetPct],['acc-dailyLoss',settings.dailyLossPct],['acc-totalLoss',settings.totalLossPct]];
+ if(fields.some(([id,value])=>document.getElementById(id).value!==String(value??''))&&!confirm('تغییرات ذخیره‌نشده تنظیمات حساب کنار گذاشته شود؟'))return false;
+ }
+
+ if(!document.getElementById('tradeFormPanel').classList.contains('hidden'))return confirm('فرم معامله باز است. تغییرات ذخیره‌نشده فرم کنار گذاشته شود؟');
+ return true;
+}
+function activateTradingAccount(id){
+ checkpointTradingAccount();const next=tradingAccounts.find(a=>a.id===id);if(!next)return false;
+ activeTradingAccountId=id;trades=next.trades;settings=next.settings;
+ editingTradeId=null;document.getElementById('tradeFormPanel').classList.add('hidden');closeModal();resetForm();standaloneChecklistState={standard:{}};
+ ['filterKillzone','filterDirection','filterResult'].forEach(id=>{document.getElementById(id).value='';});
+ document.getElementById('beThreshold').value='0';
+ rebuildIndex();saveTrades(trades);saveSettings(settings);renderTradingAccountPicker();populateAccountFields();refreshAll();renderStandaloneChecklist();return true;
+}
+function importTradingAccounts(payload){
+ let incoming;try{incoming=normalizeTradingAccounts(payload);}catch(e){showToast('فایل حساب‌ها نامعتبر است');return;}
+ openModal({title:'ورود پشتیبان حساب‌ها',sub:`${incoming.length} حساب`,body:'حساب‌های فایل به‌صورت حساب‌های جدید اضافه می‌شوند. حساب‌های فعلی حفظ می‌شوند.',actions:[{label:'انصراف'},{label:'افزودن حساب‌ها',cls:'btn-primary',onClick:()=>{
+  if(!accountDataReady||pendingCloudSaves){showToast('تا پایان ذخیره صبر کنید.');return;}
+  checkpointTradingAccount();incoming.forEach(a=>{a.id=uid();if(tradingAccounts.some(x=>x.name===a.name))a.name+=' (واردشده)';tradingAccounts.push(a);});renderTradingAccountPicker();scheduleAutoSync().then(ok=>showToast(ok?'حساب‌ها اضافه شدند':'حساب‌ها محلی ذخیره شدند؛ ذخیره ابری ناموفق بود'));
+ }}]});
+}
+document.getElementById('tradingAccountSelect').addEventListener('change',e=>{
+ if(!accountDataReady||pendingCloudSaves||!canLeaveTradingAccount()){e.target.value=activeTradingAccountId;return;}
+ activateTradingAccount(e.target.value);scheduleAutoSync().then(ok=>{if(!ok)showToast('انتخاب حساب محلی ذخیره شد؛ ذخیره ابری ناموفق بود');});
+});
+document.getElementById('addTradingAccountBtn').addEventListener('click',()=>{
+ if(!accountDataReady||pendingCloudSaves)return;
+ document.getElementById('addAccountForm').reset();document.getElementById('newAccountError').textContent='';document.getElementById('addAccountDialog').showModal();document.getElementById('newAccountName').focus();
+});
+document.getElementById('cancelAddAccount').addEventListener('click',()=>document.getElementById('addAccountDialog').close());
+document.getElementById('addAccountForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!accountDataReady||pendingCloudSaves)return;
+ const name=document.getElementById('newAccountName').value.trim();if(!name){document.getElementById('newAccountError').textContent='نام حساب را وارد کنید.';return;}
+ if(!e.target.reportValidity()||!canLeaveTradingAccount())return;
+ const balance=Number(document.getElementById('newAccountBalance').value),commission=Number(document.getElementById('newAccountCommission').value);
+ if(!Number.isFinite(balance)||balance<=0||!Number.isFinite(commission)||commission<0)return;
+ checkpointTradingAccount();const account={id:uid(),name,firm:document.getElementById('newAccountFirm').value.trim(),stage:document.getElementById('newAccountStage').value,settings:{...DEFAULT_SETTINGS,initialBalance:balance,commissionPerLot:commission},trades:[]};
+ tradingAccounts.push(account);activateTradingAccount(account.id);document.getElementById('addAccountDialog').close();
+ const ok=await scheduleAutoSync();showToast(ok?'حساب جدید ساخته شد':'حساب محلی ساخته شد؛ ذخیره ابری ناموفق بود');
+});
+document.getElementById('exportAllAccountsBtn').addEventListener('click',()=>downloadBlob(JSON.stringify(tradingAccountPayload(),null,2),'nq-all-accounts-'+todayNY()+'.json','application/json'));
