@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=13">
+<link rel="stylesheet" href="styles.css?v=15">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -137,7 +137,7 @@
     </nav>
   </aside>
 
-<main>  <div class="warn-banner" id="storageWarn" role="alert">
+<main>  <div class="trading-account-bar"><div class="trading-account-picker"><label for="tradingAccountSelect">حساب معاملاتی</label><select id="tradingAccountSelect" disabled aria-label="انتخاب حساب معاملاتی"></select></div><button type="button" class="btn btn-primary" id="addTradingAccountBtn" disabled><bdi dir="ltr">+ Add Account</bdi></button></div><div class="warn-banner" id="storageWarn" role="alert">
     <span>⚠</span><span id="storageWarnText"></span>
   </div>
 
@@ -207,7 +207,7 @@
     </div>
 
     <div class="journal-actions">
-      <button class="btn" id="exportBtnJournal">خروجی JSON</button>
+      <button class="btn" id="exportBtnJournal">خروجی JSON حساب فعال</button>
       <button class="btn" id="exportCsvBtnJournal">خروجی CSV</button>
       <button class="btn" id="importBtnJournal">ایمپورت / ادغام</button>
       <input type="file" id="importFileJournal" accept="application/json,.json,.csv,text/csv" style="display:none">
@@ -405,7 +405,7 @@
     <h1 class="page-title">Account</h1>
     <p class="page-sub">موجودی، کمیسیون و پشتیبان‌گیری</p>
 
-    <div class="panel">
+    <div class="panel"><div class="panel-head"><h3>تنظیمات حساب معاملاتی فعال</h3></div><div class="form-grid-2"><div class="field"><label for="acc-name">نام حساب</label><input id="acc-name" maxlength="80" required></div><div class="field"><label for="acc-firm">شرکت پراپ</label><input id="acc-firm" maxlength="80" placeholder="اختیاری"></div></div><div class="field"><label for="acc-stage">مرحله حساب</label><select id="acc-stage"><option value="evaluation">چالش</option><option value="funded">فاندد</option><option value="personal">شخصی</option></select></div><div class="form-grid-2"><div class="field"><label for="acc-target">هدف سود (%)</label><input type="number" id="acc-target" min="0" step="0.01" placeholder="اختیاری"></div><div class="field"><label for="acc-dailyLoss">حداکثر ضرر روزانه (%)</label><input type="number" id="acc-dailyLoss" min="0" step="0.01" placeholder="اختیاری"></div><div class="field"><label for="acc-totalLoss">حداکثر ضرر کل (%)</label><input type="number" id="acc-totalLoss" min="0" step="0.01" placeholder="اختیاری"></div></div><p class="field-desc">این مقادیر برای ثبت قوانین حساب هستند؛ عبور از حدود ضرر را به‌صورت خودکار بررسی نمی‌کنند.</p></div><div class="panel">
       <div class="panel-head"><h3>موجودی اولیه حساب</h3></div>
       <input type="number" id="acc-initial" step="1" style="width:100%; background:var(--bg-2); border:1px solid var(--line); border-radius:9px; padding:8px 10px;">
     </div>
@@ -425,13 +425,13 @@
       <div class="panel-head"><h3>پشتیبان‌گیری و خروجی</h3></div>
       <p class="field-desc">برای انتقال یا آرشیو معاملات، خروجی بگیر.</p>
       <div class="backup-actions">
-        <button class="btn" id="exportBtn">خروجی JSON</button>
+        <button class="btn" id="exportBtn">خروجی JSON حساب فعال</button>
         <button class="btn" id="exportCsvBtn">خروجی CSV (اکسل)</button>
         <button class="btn" id="reportBtn">گزارش PDF ماهانه</button>
         <button class="btn" id="importBtn">ایمپورت / ادغام</button>
         <input type="file" id="importFile" accept="application/json,.json,.csv,text/csv" style="display:none">
         <button class="btn btn-danger" id="clearAllBtn">حذف همه داده‌ها</button>
-      </div>
+      <button type="button" class="btn" id="exportAllAccountsBtn">پشتیبان همه حساب‌ها</button></div>
       <div class="mini-note">
         CSV با جداکنندهٔ <code>,</code> و BOM ساخته می‌شود تا اکسل فارسی/آلمانی درست بازش کند.
         گزارش PDF از پنجرهٔ چاپ مرورگر ساخته می‌شود؛ در مقصد «Save as PDF» را انتخاب کن.
@@ -486,8 +486,8 @@
 <div class="toast" id="toast"></div>
 
 
-<script src="app.js?v=13"></script>
-<script src="ui-enhance.js?v=13"></script>
+
+
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -495,5 +495,5 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-<dialog id="sampleViewer" aria-label="نمایش نمونه ترید"><div class="viewer-shell"><header class="viewer-toolbar"><strong id="sampleTitle"></strong><div class="viewer-controls"><button type="button" id="sampleZoomOut" aria-label="کوچک‌نمایی">−</button><output id="sampleZoomValue" dir="ltr">100%</output><button type="button" id="sampleZoomIn" aria-label="بزرگ‌نمایی">+</button><button type="button" id="sampleFit">اندازه مناسب</button><button type="button" id="sampleClose" aria-label="بستن تصویر">✕</button></div></header><div id="sampleStage" tabindex="0" aria-label="تصویر؛ برای جابه‌جایی پس از زوم بکشید"><div id="sampleCanvas"><img id="sampleImage" alt="" draggable="false"></div><p id="sampleError" hidden>تصویر بارگذاری نشد. دوباره تلاش کنید.</p></div><footer class="viewer-footer" dir="ltr"><button type="button" id="samplePrevious">← قبلی</button><span id="sampleCounter"></span><button type="button" id="sampleNext">بعدی →</button></footer></div></dialog><script src="ux.js?v=13"></script></body>
+<dialog id="sampleViewer" aria-label="نمایش نمونه ترید"><div class="viewer-shell"><header class="viewer-toolbar"><strong id="sampleTitle"></strong><div class="viewer-controls"><button type="button" id="sampleZoomOut" aria-label="کوچک‌نمایی">−</button><output id="sampleZoomValue" dir="ltr">100%</output><button type="button" id="sampleZoomIn" aria-label="بزرگ‌نمایی">+</button><button type="button" id="sampleFit">اندازه مناسب</button><button type="button" id="sampleClose" aria-label="بستن تصویر">✕</button></div></header><div id="sampleStage" tabindex="0" aria-label="تصویر؛ برای جابه‌جایی پس از زوم بکشید"><div id="sampleCanvas"><img id="sampleImage" alt="" draggable="false"></div><p id="sampleError" hidden>تصویر بارگذاری نشد. دوباره تلاش کنید.</p></div><footer class="viewer-footer" dir="ltr"><button type="button" id="samplePrevious">← قبلی</button><span id="sampleCounter"></span><button type="button" id="sampleNext">بعدی →</button></footer></div></dialog><dialog id="addAccountDialog" aria-labelledby="addAccountTitle"><form id="addAccountForm"><h2 id="addAccountTitle">افزودن حساب معاملاتی</h2><p class="field-desc">معاملات و تنظیمات هر حساب جدا نگه داشته می‌شوند.</p><div class="field"><label for="newAccountName">نام حساب</label><input id="newAccountName" required maxlength="80" placeholder="مثلاً حساب چالش ۵۰ هزار دلاری"></div><div class="field"><label for="newAccountFirm">شرکت پراپ</label><input id="newAccountFirm" maxlength="80" placeholder="اختیاری"></div><div class="form-grid-2"><div class="field"><label for="newAccountBalance">موجودی اولیه ($)</label><input id="newAccountBalance" type="number" min="0.01" step="0.01" required></div><div class="field"><label for="newAccountCommission">کمیسیون هر لات ($)</label><input id="newAccountCommission" type="number" min="0" step="0.01" value="0" required></div></div><div class="field"><label for="newAccountStage">مرحله حساب</label><select id="newAccountStage"><option value="evaluation">چالش</option><option value="funded">فاندد</option><option value="personal">شخصی</option></select></div><p id="newAccountError" role="alert"></p><div class="form-actions"><button class="btn" type="button" id="cancelAddAccount">انصراف</button><button class="btn btn-primary" type="submit" id="createAccountSubmit">ساخت حساب</button></div></form></dialog><small id="buildVersion" style="display:block;text-align:center;padding:8px;color:var(--muted)">نسخه ۱۵ · ۲۰۲۶/۰۹/۰۸</small><script src="app.js?v=15"></script><script src="ui-enhance.js?v=15"></script><script src="ux.js?v=15"></script></body>
 </html>
