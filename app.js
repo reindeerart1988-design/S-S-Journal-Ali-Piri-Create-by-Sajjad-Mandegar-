@@ -399,11 +399,11 @@ function rebuildIndex(){
   }
 }
 async function commitTrades(){ rebuildIndex(); const localOk = saveTrades(trades); const cloudOk = await scheduleAutoSync(); return localOk && cloudOk; }
-function refreshAll(){ populateFilters(); renderTradesList(); renderDashboard(); renderCalendar(); renderAccountPreview(); }
+function refreshAll(){ populateFilters(); renderTradesList(); renderDashboard(); renderCalendar(); renderAccountPreview(); renderAccountCards(); }
 
 function calcCommission(t){ return (Number(t.lotSize)||0) * (Number(settings.commissionPerLot)||0); }
 function calcNet(t){ return (Number(t.grossPL)||0) - calcCommission(t); }
-function calcBalance(){ return (Number(settings.initialBalance)||0) + trades.reduce((s,t)=>s+calcNet(t),0); }
+function calcBalance(){ return (Number(settings.initialBalance)||0) + trades.reduce((s,t)=>s+calcNet(t),0) + (activeTradingAccount()?.cashflows||[]).reduce((s,x)=>s+Number(x.amount),0); }
 
 /* Old-format trades (planned RR, entry/exit time, old checklist keys) are upgraded on load. */
 function migrateTrade(t){
@@ -994,7 +994,7 @@ function maxLosingStreak(list){
 function renderStatGrid(){
   const s = computeStats(trades);
   const bal = calcBalance();
-  const netChange = bal - (Number(settings.initialBalance)||0);
+  const netChange = trades.reduce((s,t)=>s+calcNet(t),0);
   const best = trades.length ? Math.max(...trades.map(t=>Number(t.rr)||0)) : 0;
 
   document.getElementById('statGridPerf').innerHTML = `
@@ -1068,9 +1068,10 @@ function renderPnlStats(ann){
   const initial = Number(settings.initialBalance)||0;
   /* TOTAL PNL was range-filtered while ACCOUNT BALANCE was always all-time, so
      the two numbers contradicted each other on every range but "All". */
-  const bal = ann.length ? ann[ann.length-1].after : calcBalance();
-  const balLabel = pnlRange==='all' ? 'ACCOUNT BALANCE' : 'BALANCE AT RANGE END';
-  const balPct = initial ? ((bal-initial)/initial*100) : (bal>0?100:0);
+  const bal = pnlRange==='all' ? calcBalance() : ann[ann.length-1].after;
+  const balLabel = pnlRange==='all' ? 'ACCOUNT BALANCE' : 'TRADING BALANCE AT RANGE END';
+  const tradingProfit = trades.reduce((s,t)=>s+calcNet(t),0);
+  const balPct = initial ? (tradingProfit/initial*100) : 0;
   const baseForPct = ann.length ? ann[0].before : initial;
   const totalPct = baseForPct ? (totalNet/baseForPct*100) : (totalNet>0?100:0);
 
@@ -2059,6 +2060,7 @@ function setSyncStatus(text, state){
   const dot = document.getElementById('syncDot');
   const status = document.getElementById('syncStatus');
   if(status) status.textContent = text;
+  const retry=document.getElementById('retryAccountSync');if(retry)retry.hidden=state!=='err';
   if(dot){ dot.classList.toggle('on', state==='ok'); dot.classList.toggle('err', state==='err'); }
 }
 
@@ -2290,7 +2292,7 @@ function normalizeTradingAccounts(payload){
   let id=typeof a.id==='string'&&a.id?a.id:uid();if(seen.has(id))throw new Error('شناسه حساب تکراری است');seen.add(id);
   const conf={...DEFAULT_SETTINGS,...(a.settings||{})};
   for(const key of ['initialBalance','commissionPerLot']){if(!Number.isFinite(Number(conf[key]))||Number(conf[key])<0)throw new Error('تنظیمات عددی حساب نامعتبر است');conf[key]=Number(conf[key]);}
-  return {id,name:String(a.name||('حساب '+(i+1))).slice(0,80),firm:String(a.firm||'').slice(0,80),stage:['evaluation','funded','personal'].includes(a.stage)?a.stage:'evaluation',settings:conf,trades:a.trades.map(migrateTrade)};
+  return {id,name:String(a.name||('حساب '+(i+1))).slice(0,80),firm:String(a.firm||'').slice(0,80),stage:['evaluation','funded','personal'].includes(a.stage)?a.stage:'evaluation',settings:conf,archived:!!a.archived,cashflows:(Array.isArray(a.cashflows)?a.cashflows:[]).filter(x=>x&&Number.isFinite(Number(x.amount))).map(x=>({...x,amount:Number(x.amount)})),trades:a.trades.map(migrateTrade)};
  });
 }
 function loadTradingAccountPayload(payload){
@@ -2305,11 +2307,11 @@ function persistTradingAccounts(){
 }
 function updateAccountBusy(){
  const busy=!accountDataReady||pendingCloudSaves>0;
- ['tradingAccountSelect','addTradingAccountBtn','createAccountSubmit','saveSettingsBtn','submitFormBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=busy;});
+ ['tradingAccountSelect','addTradingAccountBtn','createAccountSubmit','deleteTradingAccountBtn','saveSettingsBtn','submitFormBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=busy;});
 }
 function renderTradingAccountPicker(){
  const select=document.getElementById('tradingAccountSelect');if(!select)return;
- select.innerHTML=tradingAccounts.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}${a.firm?' · '+esc(a.firm):''}</option>`).join('');select.value=activeTradingAccountId;updateAccountBusy();
+ select.innerHTML=tradingAccounts.filter(a=>!a.archived||a.id===activeTradingAccountId).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}${a.firm?' · '+esc(a.firm):''}</option>`).join('');select.value=activeTradingAccountId;updateAccountBusy();renderAccountCards();
 }
 function populateTradingAccountFields(){
  const a=activeTradingAccount();if(!a)return;
@@ -2368,3 +2370,69 @@ document.getElementById('addAccountForm').addEventListener('submit',async e=>{
  const ok=await scheduleAutoSync();showToast(ok?'حساب جدید ساخته شد':'حساب محلی ساخته شد؛ ذخیره ابری ناموفق بود');
 });
 document.getElementById('exportAllAccountsBtn').addEventListener('click',()=>downloadBlob(JSON.stringify(tradingAccountPayload(),null,2),'nq-all-accounts-'+todayNY()+'.json','application/json'));
+
+/* Delete only the selected trading account, after an explicit confirmation. */
+document.getElementById('deleteTradingAccountBtn').addEventListener('click',()=>{
+ if(!accountDataReady||pendingCloudSaves)return;
+ const account=activeTradingAccount();if(!account)return;
+ if(tradingAccounts.length<=1){showToast('برای حذف این حساب، ابتدا یک حساب دیگر بسازید. حداقل یک حساب باید باقی بماند.');return;}
+ const id=account.id,owner=currentUser?.id;
+ openModal({title:'حذف حساب معاملاتی',sub:account.name,
+ body:`<p>حساب <strong>${esc(account.name)}</strong> همراه با ${account.trades.length} معامله و تنظیماتش حذف می‌شود. اطلاعات حساب‌های دیگر حفظ می‌شود. این کار قابل بازگشت نیست؛ در صورت نیاز ابتدا پشتیبان بگیرید.</p>`,
+ actions:[{label:'انصراف'},{label:'دریافت پشتیبان',close:false,onClick:()=>downloadBlob(JSON.stringify(tradingAccountPayload(),null,2),'nq-before-delete-'+todayNY()+'.json','application/json')},
+ {label:'حذف حساب',cls:'btn-danger',close:false,onClick:async()=>{
+  if(!accountDataReady||pendingCloudSaves||currentUser?.id!==owner||activeTradingAccountId!==id||tradingAccounts.length<=1)return;
+  checkpointTradingAccount();
+  const previous=tradingAccounts;
+  tradingAccounts=tradingAccounts.filter(a=>a.id!==id);
+  // Persist the replacement state before changing the visible account.
+  const next=tradingAccounts.find(a=>!a.archived)||tradingAccounts[0];next.archived=false;
+  try{localStorage.setItem('ss:accounts:'+owner,JSON.stringify({accountSchema:1,accounts:tradingAccounts,activeAccountId:next.id,trades:next.trades,settings:next.settings}));}
+  catch(e){tradingAccounts=previous;showToast('حذف انجام نشد؛ ذخیره در مرورگر ممکن نیست.');return;}
+  activateTradingAccount(next.id);
+  const ok=await scheduleAutoSync();
+  showToast(ok?'حساب حذف شد':'حساب محلی حذف شد؛ همگام‌سازی ابری ناموفق بود.');
+ }}]});
+});
+
+function accountFigures(a){
+ const net=a.trades.reduce((s,t)=>s+(Number(t.grossPL)||0)-(Number(t.lotSize)||0)*(Number(a.settings.commissionPerLot)||0),0);
+ const cash=(a.cashflows||[]).reduce((s,x)=>s+Number(x.amount),0),base=Number(a.settings.initialBalance)||0;
+ return {net,cash,base,balance:base+net+cash};
+}
+function renderAccountCards(){
+ const host=document.getElementById('accountCards');if(!host)return;
+ host.innerHTML=tradingAccounts.map(a=>{
+ const f=accountFigures(a),target=f.base*Number(a.settings.profitTargetPct||0)/100,loss=f.base*Number(a.settings.totalLossPct||0)/100;
+ const meter=(label,value,max)=>`<div>${label}: <bdi>${fmtUSD(value)}</bdi><progress max="${max}" value="${Math.min(max,Math.max(0,max-value))}"></progress></div>`;
+ return `<article class="account-card ${a.id===activeTradingAccountId?'selected':''}"><header><strong>${esc(a.name)}</strong><details><summary aria-label="عملیات حساب">⋯</summary><div class="account-menu">${['edit','archive','backup','delete','cash'].map((act,i)=>`<button class="btn" data-account="${esc(a.id)}" data-act="${act}">${['ویرایش',a.archived?'بازگردانی':'آرشیو','پشتیبان','حذف','واریز / برداشت'][i]}</button>`).join('')}</div></details></header><p>${esc(a.firm||'بدون نام پراپ')} · ${({evaluation:'چالش',funded:'فاندد',personal:'شخصی'})[a.stage]||'حساب'}</p><p>${a.archived?'آرشیوشده':a.id===activeTradingAccountId?'✓ حساب فعال':'آماده انتخاب'}</p><h3 dir="ltr">${fmtUSD(f.balance)}</h3><p>سود معاملات: <bdi>${fmtUSD(f.net)}</bdi></p><p>خالص واریز و برداشت: <bdi>${fmtUSD(f.cash)}</bdi></p>${target>0?meter('مانده تا هدف سود',Math.max(0,target-f.net),target):'<p>هدف سود تنظیم نشده</p>'}${loss>0?meter('فاصله تا حد ضرر کل ثابت',Math.max(0,loss+f.net),loss):'<p>حد ضرر کل تنظیم نشده</p>'}<button class="btn" data-account="${esc(a.id)}" data-act="select" ${a.archived?'disabled':''}>${a.id===activeTradingAccountId?'✓ انتخاب‌شده':'انتخاب حساب'}</button></article>`;
+ }).join('');
+ host.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>accountCardAction(b.dataset.account,b.dataset.act));
+}
+async function accountCardAction(id,act){
+ if(!accountDataReady||pendingCloudSaves)return;
+ const a=tradingAccounts.find(x=>x.id===id);if(!a)return;
+ if(act==='backup'){downloadBlob(JSON.stringify({accountSchema:1,accounts:[a],activeAccountId:a.id},null,2),'account-backup-'+todayNY()+'.json','application/json');return;}
+ if(act==='archive'){
+  if(!a.archived&&a.id===activeTradingAccountId){const next=tradingAccounts.find(x=>x.id!==id&&!x.archived);if(!next){showToast('ابتدا یک حساب فعال دیگر بسازید.');return;}if(!canLeaveTradingAccount())return;activateTradingAccount(next.id);}
+  a.archived=!a.archived;renderTradingAccountPicker();await scheduleAutoSync();return;
+ }
+ if(a.archived){showToast('ابتدا حساب را از آرشیو بازگردانید.');return;}
+ if(id!==activeTradingAccountId){if(!canLeaveTradingAccount())return;activateTradingAccount(id);await scheduleAutoSync();}
+ if(act==='edit')goToView('account');
+ if(act==='delete')document.getElementById('deleteTradingAccountBtn').click();
+ if(act==='cash'){
+ const owner=currentUser?.id;
+ openModal({title:'واریز / برداشت',sub:a.name,body:`<form id="cashForm"><label>نوع تراکنش<select id="cashType"><option value="1">واریز</option><option value="-1">برداشت</option></select></label><label>مبلغ ($)<input id="cashAmount" type="number" min="0.01" step="0.01" required></label><label>تاریخ<input id="cashDate" type="date" value="${todayNY()}" required></label><label>یادداشت<input id="cashNote" maxlength="200"></label></form><p>این مبلغ در سود و وین‌ریت معاملات محاسبه نمی‌شود.</p><ul>${(a.cashflows||[]).map(x=>`<li>${esc(x.date)} · <bdi>${fmtUSD(x.amount)}</bdi> · ${esc(x.note||'')}</li>`).join('')}</ul>`,actions:[{label:'انصراف'},{label:'ثبت',close:false,onClick:async()=>{
+ if(pendingCloudSaves||currentUser?.id!==owner||activeTradingAccountId!==id)return;
+ if(!document.getElementById('cashForm').reportValidity())return;
+ const amount=Number(document.getElementById('cashAmount').value)*Number(document.getElementById('cashType').value);if(!Number.isFinite(amount)||!amount)return;
+ const entry={id:uid(),amount,date:document.getElementById('cashDate').value,note:document.getElementById('cashNote').value};
+ a.cashflows=a.cashflows||[];a.cashflows.push(entry);
+ if(!persistTradingAccounts()){a.cashflows.pop();return;}
+ closeModal();refreshAll();await scheduleAutoSync();
+ }}]});
+ }
+}
+
+document.getElementById('retryAccountSync').addEventListener('click',async()=>{if(!accountDataReady||pendingCloudSaves)return;await scheduleAutoSync();});
