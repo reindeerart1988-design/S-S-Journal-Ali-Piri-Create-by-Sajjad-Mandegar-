@@ -274,14 +274,16 @@ async function handleLogout() {
    DATA
 ============================================================ */
 /* Shared first step for every setup: finding the liquidity POI on the 15m chart. */
-const STEP_POI = {n:'1', title:'Liquidity / POI', tf:'15m', items:['BSL','SSL','FVG','OB'].map(label=>({key:label.toLowerCase(),label,en:true}))};
+const STEP_POI = {n:'1', title:'Liquidity / POI', tf:'15m', items:['BSL','SSL'].map(label=>({key:label.toLowerCase(),label,en:true}))};
 const STEP_CRT_BOX = {n:'2',title:'CRT / BOX',tf:'15m',items:[{key:'withCrt',label:'با <bdi dir="ltr">CRT/BOX</bdi>'},{key:'withoutCrt',label:'بدون <bdi dir="ltr">CRT/BOX</bdi>'}]};
 const STEP_CONFIRMATION = {n:'3',title:'Confirmation',tf:'1m',items:[{key:'cisd',label:'CISD',en:true},{key:'mss',label:'MSS',en:true}]};
 const SETUPS = {standard:{id:'standard',label:'چک‌لیست استراتژی',tag:'NQ',accent:'blue',desc:'',steps:[
- STEP_POI,STEP_CRT_BOX,STEP_CONFIRMATION,
- {n:'4',title:'iFVG / CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
- {n:'5',title:'پولبک',tf:'1m',items:[{key:'pullbackCisd',label:'پولبک به <bdi dir="ltr">CISD</bdi>'}]},
- {n:'6',title:'شکست OB',tf:'1m',items:[{key:'breakob',label:'شکست <bdi dir="ltr">OB</bdi>'}]}
+ STEP_POI,
+ {n:'2',title:'گرفتن نقدینگی معتبر',tf:'15m',items:[{key:'directSweep',label:'مستقیم در NQ'},{key:'smtSweep',label:'با SMT نسبت به ES'}]},
+ {n:'3',title:'بررسی هم‌زمان',tf:'15m',items:[{key:'pairedCharts',label:'NQ و ES بررسی شدند'}]},
+ {n:'4',title:'iFVG / CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'تمام FVGهای مربوط، iFVG شدند'},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
+ {n:'5',title:'پولبک',tf:'1m',items:[{key:'pullbackBreaker',label:'پولبک به بریکر بلاک'},{key:'pullbackPriorBlock',label:'پولبک به بلاک به‌جامانده قبل از CISD'}]},
+ {n:'6',title:'تأیید نهایی پروپالشن بلاک',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز یک‌دقیقه‌ای'}]}
 ]}};
 const SETUP_ORDER = ['standard'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
