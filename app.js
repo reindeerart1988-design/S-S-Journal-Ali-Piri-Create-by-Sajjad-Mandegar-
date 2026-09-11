@@ -279,11 +279,10 @@ const STEP_CRT_BOX = {n:'2',title:'CRT / BOX',tf:'15m',items:[{key:'withCrt',lab
 const STEP_CONFIRMATION = {n:'3',title:'Confirmation',tf:'1m',items:[{key:'cisd',label:'CISD',en:true},{key:'mss',label:'MSS',en:true}]};
 const SETUPS = {standard:{id:'standard',label:'چک‌لیست استراتژی',tag:'NQ',accent:'blue',desc:'',steps:[
  STEP_POI,
- {n:'2',title:'گرفتن نقدینگی معتبر',tf:'15m',items:[{key:'directSweep',label:'مستقیم در NQ'},{key:'smtSweep',label:'با SMT نسبت به ES'}]},
- {n:'3',title:'بررسی هم‌زمان',tf:'15m',items:[{key:'pairedCharts',label:'NQ و ES بررسی شدند'}]},
- {n:'4',title:'iFVG / CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'تمام FVGهای مربوط، iFVG شدند'},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
- {n:'5',title:'پولبک',tf:'1m',items:[{key:'pullbackBreaker',label:'پولبک به بریکر بلاک'},{key:'pullbackPriorBlock',label:'پولبک به بلاک به‌جامانده قبل از CISD'}]},
- {n:'6',title:'تأیید نهایی پروپالشن بلاک',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز یک‌دقیقه‌ای'}]}
+ {n:'2',title:'SMT با ES',tf:'15m',items:[{key:'smtYes',label:'بله'},{key:'smtNo',label:'خیر'}]},
+ {n:'3',title:'iFVG / CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'تمام FVGهای مربوط، iFVG شدند'},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
+ {n:'4',title:'پولبک',tf:'1m',items:[{key:'pullbackBreaker',label:'پولبک به بریکر بلاک'},{key:'pullbackPriorBlock',label:'پولبک به بلاک به‌جامانده قبل از CISD'}]},
+ {n:'5',title:'تأیید نهایی پروپالشن بلاک',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز یک‌دقیقه‌ای'}]}
 ]}};
 const SETUP_ORDER = ['standard'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
@@ -430,7 +429,7 @@ function migrateTrade(t){
   if(!m.setupId || !SETUPS[m.setupId]) m.setupId = 'standard';
   const c = m.checklist || {};
   m.checklist = {
-    ...c, withCrt:!c.withoutCrt && !!(c.withCrt || c.crt || c.box || c.crt_box), withoutCrt:!!c.withoutCrt,
+    ...c, smtYes:!!c.smtYes || (!c.smtNo && !!c.smtSweep), smtNo:!!c.smtNo && !c.smtYes, withCrt:!c.withoutCrt && !!(c.withCrt || c.crt || c.box || c.crt_box), withoutCrt:!!c.withoutCrt,
     entryCisd:!!(c.ifvg && c.entryCisd), pullbackCisd:!!c.pullbackCisd,
     bsl: !!(c.bsl || c.bsl_sweep), ssl: !!(c.ssl || c.ssl_sweep),
     fvg: !!(c.fvg || c.fvg_hit), ob: !!(c.ob || c.ob_hit),
