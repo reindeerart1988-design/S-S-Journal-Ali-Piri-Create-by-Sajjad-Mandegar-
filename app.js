@@ -284,7 +284,21 @@ const SETUPS = {standard:{id:'standard',label:'چک‌لیست استراتژی'
  {n:'4',title:'پولبک',tf:'1m',items:[{key:'pullbackBreaker',label:'پولبک به بریکر بلاک'},{key:'pullbackPriorBlock',label:'پولبک به بلاک به‌جامانده قبل از CISD'}]},
  {n:'5',title:'تأیید نهایی پروپالشن بلاک',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز یک‌دقیقه‌ای'}]}
 ]}};
-const SETUP_ORDER = ['standard'];
+
+const PROP_CONFIRM={title:'شکست Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز و تأیید حرکت'}]};
+const FIXED_TARGET={title:'ورود با تارگت ثابت',tf:'',items:[{key:'rrTwoConfirmed',label:'تارگت ثابت Risk to Reward = 1:2'}]};
+SETUPS.crtModel={id:'crtModel',label:'مدل اول | CRT',tag:'CRT',accent:'blue',desc:'Liquidity → CRT Box → Shift → PD Zone → Confirmation → Entry',steps:[
+ STEP_POI,
+ {n:'2',title:'تشکیل CRT Box',tf:'15m',items:[{key:'crtBoxConfirmed',label:'CRT Box در ناحیه موردنظر تشکیل شد'}]},
+ {n:'3',title:'شیفت در تایم پایین',tf:'1m',items:[{key:'crtCisd',label:'CISD',en:true},{key:'crtMss',label:'MSS',en:true}]},
+ {n:'4',title:'برگشت به PD Zone',tf:'1m',items:[{key:'pdZonePullback',label:'برگشت به PD Zone مناسب ورود'}]},
+ {...PROP_CONFIRM,n:'5'},{...FIXED_TARGET,n:'6'}]};
+SETUPS.cisdModel={id:'cisdModel',label:'مدل دوم | CISD / IFVG',tag:'CISD / IFVG',accent:'blue',desc:'Liquidity → Shift → Pullback → Confirmation → Entry',steps:[
+ STEP_POI,
+ {n:'2',title:'شیفت در تایم پایین — CISD / IFVG',tf:'1m',multi:true,items:[{key:'ifvg',label:'تمام FVGهای مربوط، iFVG شدند'},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
+ {n:'3',title:'برگشت به ناحیه ورود',tf:'1m',items:[{key:'pullbackBreaker',label:'CISD / بریکر بلاک'},{key:'pullbackPriorBlock',label:'OB قبل از CISD'}]},
+ {...PROP_CONFIRM,n:'4'},{...FIXED_TARGET,n:'5'}]};
+const SETUP_ORDER = ['crtModel','cisdModel'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 function stepDone(step, state){
@@ -591,8 +605,11 @@ function helpPanel(step, ns){
 function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
   state = state || {};
+  const smtInfo = `<div class="cl-note">SMT با ES (اختیاری): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
+
+  state = state || {};
   ns = ns || 'default';
-  return steps.map(step=>{
+  return smtInfo + steps.map(step=>{
     let head, body, skipped = false;
     if(step.type==='conditional'){
       skipped = step.skipIfKey && !!state[step.skipIfKey];
@@ -635,6 +652,7 @@ function renderChecklistBlocks(steps, state, ns){
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
+ el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';after();}));
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const key = chip.dataset.key;
@@ -677,7 +695,7 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'standard';
+let formSetupId = 'crtModel';
 function renderFormSetupSwitch(){
   const el = document.getElementById('formSetupSwitch');
   if(!el) return;
@@ -749,7 +767,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('standard');
+  buildFormChecklist('crtModel');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -1550,7 +1568,7 @@ function renderCalendar(){
 /* ============================================================
    STANDALONE CHECKLIST
 ============================================================ */
-let currentSetupId = 'standard';
+let currentSetupId = 'crtModel';
 function renderSetupPicker(){
   const el = document.getElementById('setupPicker');
   el.innerHTML = SETUP_ORDER.map(id=>{
@@ -1582,7 +1600,7 @@ function renderStandaloneChecklist(){
   document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
   document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='standard'; renderStandaloneChecklist(); });
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='crtModel'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
   if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
