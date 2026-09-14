@@ -299,7 +299,24 @@ SETUPS.cisdModel={id:'cisdModel',label:'مدل دوم | CISD / IFVG',tag:'CISD /
  {n:'2',title:'شیفت در تایم پایین — CISD / IFVG',tf:'1m',multi:true,items:[{key:'ifvg',label:'تمام FVGهای مربوط همراه VIMB با دیسپلیسمنت، iFVG شدند'},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
  {n:'3',title:'برگشت به ناحیه ورود',tf:'1m',items:[{key:'pullbackBreaker',label:'CISD / بریکر بلاک'},{key:'pullbackPriorBlock',label:'OB قبل از CISD'}]},
  {...PROP_CONFIRM,n:'4'},{...FIXED_TARGET,n:'5'}]};
-const SETUP_ORDER = ['crtModel','cisdModel'];
+// Versioned setup IDs preserve the checklist definitions of existing trades.
+const WINDOW_V23={title:'مهلت مشترک C2 و C3',tf:'15m',items:[{key:'windowValid23',label:'مهلت ستاپ تمام نشده؛ حرکت بدون ورود انجام نشده است'}],note:'C1 اولین کندل برخورد به POI است. مهلت C2 و C3 برای هر دو مدل است؛ پس از پایان فرصت، برگشت بعدی مجوز ورود همان ستاپ نیست.'};
+SETUPS.crt23={id:'crt23',label:'مدل اول | CRT / BOX',tag:'CRT / BOX',accent:'blue',desc:'CRT / BOX → CISD / MSS → 50% → SR در صورت الزام → Propulsion',steps:[
+ CURRENT_POI,
+ {...WINDOW_V23,n:'2'},
+ {n:'3',title:'مدل تأیید ۱۵ دقیقه',tf:'15m',items:[{key:'crt23',label:'CRT',en:true},{key:'box23',label:'BOX',en:true}],note:'C2 نقدینگی C1 را می‌گیرد. BOX: کلوز زیر BSL برای فروش یا بالای SSL برای خرید؛ رنگ C2 مخالف C1. CRT: طبق مدل، سایه C2 زیر BSL یا بالای SSL می‌رود؛ شکل کندل ملاک است، نه رنگ.'},
+ {n:'4',title:'تأیید یک‌دقیقه‌ای',tf:'1m',items:[{key:'crtCisd',label:'CISD',en:true},{key:'crtMss',label:'MSS',en:true}],note:'لگ کوتاهِ گرفتن نقدینگی و برگشت سریع: CISD؛ لگ بلند همراه دیسپلیسمنت و دورشدن از سطح: MSS.'},
+ {n:'5',title:'پولبک به ۵۰٪',tf:'1m',items:[{key:'halfLeg23',label:'قیمت به ۵۰٪ لگ ایجادکننده CISD / MSS برگشت'}]},
+ {n:'6',title:'وضعیت Follow Through',tf:'1m',items:[{key:'ftYes23',label:'سه کلوز متوالی؛ SR الزامی است'},{key:'ftNo23',label:'یک یا دو کلوز؛ SR الزامی نیست'}],note:'شمارش از بعدِ کندل تأیید CISD / MSS است؛ سه کلوز متوالی در جهت حرکت، Stop Run را الزامی می‌کند.'},
+ {n:'7',title:'Stop Run',tf:'1m',skipIfKey:'ftNo23',items:[{key:'sr23',label:'نقدینگی سوئینگِ بعد از پولبک گرفته شد',requires:'ftYes23'}],note:'در صورت Follow Through: برگشت به ۵۰٪، تشکیل سوئینگ، فاصله‌گرفتن، پولبک مجدد و گرفتن نقدینگی همان سوئینگ؛ سپس شکست پروپالشن. بدون Follow Through این مرحله اجباری نیست.'},
+ {...PROP_CONFIRM,n:'8'},{...FIXED_TARGET,n:'9'}]};
+SETUPS.cisd23={id:'cisd23',label:'مدل دوم | iFVG → CISD',tag:'iFVG / CISD',accent:'blue',desc:'برخورد C1 → iFVG → CISD → پولبک الزامی → Propulsion',steps:[
+ CURRENT_POI,{...WINDOW_V23,n:'2'},
+ {n:'3',title:'iFVG پیش‌شرط CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'تمام FVGهای مربوط همراه VIMB با دیسپلیسمنت، iFVG شدند'},{key:'entryCisd',label:'CISD تأیید شد',requires:'ifvg'}],note:'از برخورد C1 بررسی شروع می‌شود؛ انتظار CRT / BOX لازم نیست. MSS در این مدل نیست. اگر لگ CISD فاقد FVG است، لگ قبلی بررسی می‌شود؛ نبود FVG در هر دو لگ یعنی رد ستاپ.'},
+ {n:'4',title:'بلاکِ قبل از CISD',tf:'1m',items:[{key:'blockYes23',label:'بلاک مرتبط به جا گذاشته شده'},{key:'blockNo23',label:'بلاکی به جا گذاشته نشده'}]},
+ {n:'5',title:'پولبک الزامی',tf:'1m',items:[{key:'blockPull23',label:'پولبک به همان بلاک انجام شد',requires:'blockYes23'},{key:'cisdPull23',label:'پولبک به CISD انجام شد',requires:'blockNo23'}],note:'با وجود بلاک، لمس CISD کافی نیست؛ بدون بلاک، پولبک به CISD لازم است. قانون ۵۰٪ و SR به این مدل تعلق ندارد.'},
+ {...PROP_CONFIRM,n:'6'},{...FIXED_TARGET,n:'7'}]};
+const SETUP_ORDER = ['crt23','cisd23'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 function stepDone(step, state){
@@ -310,7 +327,7 @@ function stepDone(step, state){
     return !!state[step.condKey];
   }
   if(step.multi) return step.items.every(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
-  return step.items.some(it=>!!state[it.key]);
+  return step.items.some(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
 }
 function stepsDoneCount(steps, state){ return steps.filter(s=>stepDone(s,state)).length; }
 
@@ -667,6 +684,7 @@ function wireChecklist(el, steps, state, after){
       state[key] = !isOn;
       if(key==='ifvg' && !state.ifvg) state.entryCisd=false;
       if(key==='propulsionSwing' && !state.propulsionSwing) state.propulsionClose=false;
+      for(const it of steps.flatMap(s=>s.items||[])){ if(it.requires && !state[it.requires]) state[it.key]=false; }
       after();
     });
   });
@@ -697,7 +715,7 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'crtModel';
+let formSetupId = 'crt23';
 function renderFormSetupSwitch(){
   const el = document.getElementById('formSetupSwitch');
   if(!el) return;
@@ -769,7 +787,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('crtModel');
+  buildFormChecklist('crt23');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -1570,7 +1588,7 @@ function renderCalendar(){
 /* ============================================================
    STANDALONE CHECKLIST
 ============================================================ */
-let currentSetupId = 'crtModel';
+let currentSetupId = 'crt23';
 function renderSetupPicker(){
   const el = document.getElementById('setupPicker');
   el.innerHTML = SETUP_ORDER.map(id=>{
@@ -1602,7 +1620,7 @@ function renderStandaloneChecklist(){
   document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
   document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='crtModel'; renderStandaloneChecklist(); });
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='crt23'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
   if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
