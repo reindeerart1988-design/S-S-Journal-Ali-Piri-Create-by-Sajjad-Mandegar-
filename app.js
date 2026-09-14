@@ -316,11 +316,27 @@ SETUPS.cisd23={id:'cisd23',label:'مدل دوم | iFVG → CISD',tag:'iFVG / CIS
  {n:'4',title:'بلاکِ قبل از CISD',tf:'1m',items:[{key:'blockYes23',label:'بلاک مرتبط به جا گذاشته شده'},{key:'blockNo23',label:'بلاکی به جا گذاشته نشده'}]},
  {n:'5',title:'پولبک الزامی',tf:'1m',items:[{key:'blockPull23',label:'پولبک به همان بلاک انجام شد',requires:'blockYes23'},{key:'cisdPull23',label:'پولبک به CISD انجام شد',requires:'blockNo23'}],note:'با وجود بلاک، لمس CISD کافی نیست؛ بدون بلاک، پولبک به CISD لازم است. قانون ۵۰٪ و SR به این مدل تعلق ندارد.'},
  {...PROP_CONFIRM,n:'6'},{...FIXED_TARGET,n:'7'}]};
-const SETUP_ORDER = ['crt23','cisd23'];
+const MODEL24={n:'2',title:'CRT / BOX',tf:'15m',type:'model',items:[]};
+SETUPS.crt24={id:'crt24',label:'با CRT/BOX',tag:'CRT / BOX',accent:'blue',steps:[
+ CURRENT_POI,MODEL24,
+ {n:'3',title:'Confirmation',tf:'1m',items:[{key:'crtCisd',label:'CISD',en:true},{key:'crtMss',label:'MSS',en:true}]},
+ {n:'4',title:'نقطه ورود',tf:'1m',items:[{key:'halfLeg23',label:'۵۰٪'}]},
+ {n:'5',title:'Stop Run (SR)',tf:'1m',type:'conditional',followKey:'ft24',followLabel:'Follow Through',condKey:'sr24',condLabel:'SR'},
+ {n:'6',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
+]};
+SETUPS.cisd24={id:'cisd24',label:'بدون CRT/BOX',tag:'iFVG / CISD',accent:'blue',steps:[
+ CURRENT_POI,MODEL24,
+ {n:'3',title:'Confirmation',tf:'1m',multi:true,items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
+ {n:'4',title:'بلاک قبل از CISD',tf:'1m',items:[{key:'blockYes23',label:'دارد'},{key:'blockNo23',label:'ندارد'}]},
+ {n:'5',title:'پولبک',tf:'1m',items:[{key:'blockPull23',label:'بلاک',requires:'blockYes23'},{key:'cisdPull23',label:'CISD',en:true,requires:'blockNo23'}]},
+ {n:'6',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
+]};
+const SETUP_ORDER = ['crt24','cisd24'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 function stepDone(step, state){
   state = state || {};
+  if(step.type==='model') return true;
   if(step.skipIfKey && state[step.skipIfKey]) return true;
   if(step.type==='conditional'){
     if(!state[step.followKey]) return true; /* no follow-through => this step isn't required */
@@ -629,13 +645,16 @@ function renderChecklistBlocks(steps, state, ns){
   ns = ns || 'default';
   return smtInfo + steps.map(step=>{
     let head, body, skipped = false;
-    if(step.type==='conditional'){
+    if(step.type==='model'){
+      head = `<div class="cl-head"><span class="cl-n en">2</span><span class="cl-t">CRT / BOX <i class="en">15m</i></span></div>`;
+      body = `<div class="chips">${SETUP_ORDER.map(id=>`<button type="button" class="chip ${ns.endsWith(id)?'on':''}" aria-pressed="${ns.endsWith(id)}" data-entry-model="${id}">${SETUPS[id].label}</button>`).join('')}</div>`;
+    } else if(step.type==='conditional'){
       skipped = step.skipIfKey && !!state[step.skipIfKey];
       head = `
         <div class="cl-head">
           <span class="cl-n en">${step.n}</span>
           <span class="cl-t">${isolateLabel(step.title)} <i class="en">${step.tf}</i></span>
-          ${helpBtn(step, ns)}
+          
         </div>`;
       if(skipped){
         body = `<div class="chips"><span class="cl-skip">${step.skipLabel||'غیرضروری'}</span></div>`;
@@ -653,7 +672,7 @@ function renderChecklistBlocks(steps, state, ns){
         <div class="cl-head">
           <span class="cl-n en">${step.n}</span>
           <span class="cl-t">${isolateLabel(step.title)} <i class="en">${step.tf}</i></span>
-          ${helpBtn(step, ns)}
+          
         </div>`;
       body = `
         <div class="chips">
@@ -666,10 +685,18 @@ function renderChecklistBlocks(steps, state, ns){
       step.condNotes.forEach(cn=>{ if(state[cn.when]) note += `<div class="cl-note">${cn.text}</div>`; });
     }
     const rowClass = skipped ? 'skipped' : (stepDone(step,state) ? 'done' : '');
-    return `<div class="cl-row ${rowClass}">${head}${body}${note}${helpPanel(step, ns)}</div>`;
+    return `<div class="cl-row ${rowClass}">${head}${body}</div>`;
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
+ el.querySelectorAll('[data-entry-model]').forEach(btn=>btn.addEventListener('click',()=>{
+   const id=btn.dataset.entryModel;
+   const common={}; for(const k of ['bsl','ssl','fvg','ob','smtYes','smtNo']) if(state[k]) common[k]=true;
+   if(el.id==='formChecklist') {if(formSetupId===id)return; formSetupId=id; formChecklistState=common;}
+   else {if(currentSetupId===id)return; currentSetupId=id; standaloneChecklistState[id]=common;}
+   after();
+ }));
+
  el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';after();}));
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
@@ -715,7 +742,7 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'crt23';
+let formSetupId = 'crt24';
 function renderFormSetupSwitch(){
   const el = document.getElementById('formSetupSwitch');
   if(!el) return;
@@ -732,7 +759,7 @@ function renderFormSetupSwitch(){
   });
 }
 function renderFormChecklist(){
-  renderFormSetupSwitch();
+  document.getElementById('formSetupSwitch')?.replaceChildren();
   const el = document.getElementById('formChecklist');
   const steps = getSetup(formSetupId).steps;
   el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
@@ -787,7 +814,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('crt23');
+  buildFormChecklist('crt24');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -1588,7 +1615,7 @@ function renderCalendar(){
 /* ============================================================
    STANDALONE CHECKLIST
 ============================================================ */
-let currentSetupId = 'crt23';
+let currentSetupId = 'crt24';
 function renderSetupPicker(){
   const el = document.getElementById('setupPicker');
   el.innerHTML = SETUP_ORDER.map(id=>{
@@ -1606,7 +1633,7 @@ function renderSetupPicker(){
   });
 }
 function renderStandaloneChecklist(){
-  renderSetupPicker();
+  document.getElementById('setupPicker')?.replaceChildren();
   const body = document.getElementById('checklistBody');
   if(!currentSetupId){ body.classList.add('hidden'); return; }
   body.classList.remove('hidden');
@@ -1620,7 +1647,7 @@ function renderStandaloneChecklist(){
   document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
   document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='crt23'; renderStandaloneChecklist(); });
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='crt24'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
   if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
