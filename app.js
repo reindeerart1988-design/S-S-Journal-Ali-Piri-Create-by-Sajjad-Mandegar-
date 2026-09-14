@@ -147,6 +147,7 @@ async function uploadAvatar(file){
 
 // نمایش برنامه بعد از ورود موفق / پنهان‌کردن فرم ورود
 function showApp(user){
+    if(currentUser?.id!==user.id) resetSubscription();
     currentUser = user;
     hideAuthLoader();
     const modal = document.getElementById('auth-modal');
@@ -154,11 +155,13 @@ function showApp(user){
     if (modal) modal.style.display = 'none';
     if (shell) shell.style.display = '';
     renderUserProfile();
+    refreshSubscription();
 }
 
 // نمایش فرم ورود / پنهان‌کردن برنامه (کاربر لاگین نیست)
 function showAuthForm(){
     currentUser = null;
+    resetSubscription();
     hideAuthLoader();
     const modal = document.getElementById('auth-modal');
     const shell = document.getElementById('app-shell');
@@ -866,6 +869,7 @@ document.getElementById('cancelFormBtn').addEventListener('click', ()=>{
 
 document.getElementById('tradeForm').addEventListener('submit', async e=>{
   e.preventDefault();
+  if(!requireJournalWrite())return;
   if(pendingCloudSaves || !accountDataReady){showToast('لطفاً تا پایان ذخیره صبر کنید.');return;}
   const result = getSeg('segResult') || 'win';
   const rrRaw = Math.abs(Number(document.getElementById('f-rr').value)||0);
@@ -1698,6 +1702,7 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
 });
 
 function clearAllData(){
+  if(!requireJournalWrite())return;
   if(!confirm('معاملات و تنظیمات حساب معاملاتی فعال پاک شود؟ سایر حساب‌ها تغییر نمی‌کنند.')) return;
   trades=[]; settings={ ...DEFAULT_SETTINGS };
   commitTrades(); saveSettings(settings);
@@ -1705,6 +1710,7 @@ function clearAllData(){
   showToast('همه‌ی داده‌ها پاک شد');
 }
 function clearTradesOnly(){
+  if(!requireJournalWrite())return;
   if(!confirm('همه معاملات حساب معاملاتی فعال حذف شود؟ سایر حساب‌ها تغییر نمی‌کنند.')) return;
   trades=[]; commitTrades();
   refreshAll();
@@ -1869,6 +1875,7 @@ function analyseImport(incoming){
 }
 
 function applyImport(incoming, mode, conflicts, importedSettings){
+  if(!requireJournalWrite())return;
   if(mode==='replace'){
     trades = incoming;
   } else {
@@ -2134,6 +2141,7 @@ let supaRowId = null;
 let supaSyncTimer = null;
 
 function scheduleAutoSync(){
+  if(!subscriptionWritable()){setSyncStatus('فقط مشاهده؛ ذخیره ابری نیازمند اعتبار فعال است','err');return Promise.resolve(false);}
   const localOk=persistTradingAccounts();
   if(!currentUser || !accountDataReady) return Promise.resolve(localOk);
   const owner=currentUser.id;
@@ -2144,11 +2152,13 @@ function scheduleAutoSync(){
   return job.then(ok=>localOk&&ok).finally(()=>{pendingCloudSaves--;updateAccountBusy();});
 }
 async function syncToSupabase(silent,payload,owner){
+  await refreshSubscription();
+  if(!subscriptionWritable())return false;
   if(!currentUser || currentUser.id!==owner || !accountDataReady)return false;
   try{
     setSyncStatus('در حال ذخیره حساب‌ها…');
     if(supaRowId){
-      const {error}=await supabaseClient.from('trades').update({trade_data:payload}).eq('id',supaRowId).eq('user_id',owner);
+      const {error}=await supabaseClient.from('trades').update({trade_data:payload}).eq('id',supaRowId).eq('user_id',owner).select('id').single();
       if(error)throw error;
     }else{
       const {data,error}=await supabaseClient.from('trades').insert({user_id:owner,trade_data:payload}).select('id').single();
@@ -2164,6 +2174,7 @@ async function syncToSupabase(silent,payload,owner){
    user's row (if any) and replaces the local trades/settings with it. */
 async function loadUserTrades(){
   if(!currentUser) return;
+  await refreshSubscription();
   accountDataReady=false;updateAccountBusy();
   tradingAccounts=[];activeTradingAccountId=null;
   /* Always start from a clean slate: this browser's localStorage cache may
@@ -2385,6 +2396,7 @@ function populateTradingAccountFields(){
  renderTradingAccountPicker();
 }
 function saveTradingAccountFields(){
+ if(!requireJournalWrite())return false;
  const a=activeTradingAccount();if(!a||!accountDataReady||pendingCloudSaves)return false;
  const name=document.getElementById('acc-name').value.trim();if(!name){showToast('نام حساب را وارد کنید.');document.getElementById('acc-name').focus();return false;}
  for(const id of ['acc-initial','acc-commission','acc-target','acc-dailyLoss','acc-totalLoss']){const el=document.getElementById(id);if(!el.reportValidity()||el.value!==''&&(!Number.isFinite(Number(el.value))||Number(el.value)<0)){showToast('مقادیر حساب باید عدد صفر یا مثبت باشند.');return false;}}
@@ -2410,6 +2422,7 @@ function activateTradingAccount(id){
  rebuildIndex();saveTrades(trades);saveSettings(settings);renderTradingAccountPicker();populateAccountFields();refreshAll();renderStandaloneChecklist();return true;
 }
 function importTradingAccounts(payload){
+ if(!requireJournalWrite())return;
  let incoming;try{incoming=normalizeTradingAccounts(payload);}catch(e){showToast('فایل حساب‌ها نامعتبر است');return;}
  openModal({title:'ورود پشتیبان حساب‌ها',sub:`${incoming.length} حساب`,body:'حساب‌های فایل به‌صورت حساب‌های جدید اضافه می‌شوند. حساب‌های فعلی حفظ می‌شوند.',actions:[{label:'انصراف'},{label:'افزودن حساب‌ها',cls:'btn-primary',onClick:()=>{
   if(!accountDataReady||pendingCloudSaves){showToast('تا پایان ذخیره صبر کنید.');return;}
@@ -2447,7 +2460,7 @@ document.getElementById('deleteTradingAccountBtn').addEventListener('click',()=>
  body:`<p>حساب <strong>${esc(account.name)}</strong> همراه با ${account.trades.length} معامله و تنظیماتش حذف می‌شود. اطلاعات حساب‌های دیگر حفظ می‌شود. این کار قابل بازگشت نیست؛ در صورت نیاز ابتدا پشتیبان بگیرید.</p>`,
  actions:[{label:'انصراف'},{label:'دریافت پشتیبان',close:false,onClick:()=>downloadBlob(JSON.stringify(tradingAccountPayload(),null,2),'nq-before-delete-'+todayNY()+'.json','application/json')},
  {label:'حذف حساب',cls:'btn-danger',close:false,onClick:async()=>{
-  if(!accountDataReady||pendingCloudSaves||currentUser?.id!==owner||activeTradingAccountId!==id||tradingAccounts.length<=1)return;
+  if(!requireJournalWrite()||!accountDataReady||pendingCloudSaves||currentUser?.id!==owner||activeTradingAccountId!==id||tradingAccounts.length<=1)return;
   checkpointTradingAccount();
   const previous=tradingAccounts;
   tradingAccounts=tradingAccounts.filter(a=>a.id!==id);
@@ -2491,7 +2504,7 @@ async function accountCardAction(id,act){
  const owner=currentUser?.id;
  openModal({title:'واریز / برداشت',sub:a.name,body:`<form id="cashForm"><label>نوع تراکنش<select id="cashType"><option value="1">واریز</option><option value="-1">برداشت</option></select></label><label>مبلغ ($)<input id="cashAmount" type="number" min="0.01" step="0.01" required></label><label>تاریخ<input id="cashDate" type="date" value="${todayNY()}" required></label><label>یادداشت<input id="cashNote" maxlength="200"></label></form><p>این مبلغ در سود و وین‌ریت معاملات محاسبه نمی‌شود.</p><ul>${(a.cashflows||[]).map(x=>`<li>${esc(x.date)} · <bdi>${fmtUSD(x.amount)}</bdi> · ${esc(x.note||'')}</li>`).join('')}</ul>`,actions:[{label:'انصراف'},{label:'ثبت',close:false,onClick:async()=>{
  if(pendingCloudSaves||currentUser?.id!==owner||activeTradingAccountId!==id)return;
- if(!document.getElementById('cashForm').reportValidity())return;
+ if(!requireJournalWrite()||!document.getElementById('cashForm').reportValidity())return;
  const amount=Number(document.getElementById('cashAmount').value)*Number(document.getElementById('cashType').value);if(!Number.isFinite(amount)||!amount)return;
  const entry={id:uid(),amount,date:document.getElementById('cashDate').value,note:document.getElementById('cashNote').value};
  a.cashflows=a.cashflows||[];a.cashflows.push(entry);
