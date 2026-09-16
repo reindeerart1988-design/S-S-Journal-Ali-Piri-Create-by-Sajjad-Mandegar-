@@ -19,9 +19,9 @@ function ready(){
  document.querySelectorAll('.sample-card img,.road-image-card img').forEach(preview=>{
   preview.addEventListener('error',()=>{if(preview.dataset.retried)return;preview.dataset.retried='1';const url=new URL(preview.closest('[data-full]').dataset.full,location.href);url.searchParams.set('retry','16');preview.src=url.href;});
  });
- const tabs=[document.getElementById('road-tab-rules'),document.getElementById('road-tab-examples')];
+ const tabs=[document.getElementById('road-tab-rules'),document.getElementById('road-tab-examples'),document.getElementById('road-tab-jan2026')].filter(Boolean);
  function activate(index){tabs.forEach((tab,i)=>{const selected=i===index;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;document.getElementById(tab.getAttribute('aria-controls')).hidden=!selected;});}
- tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activate(index));tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowLeft'||e.key==='ArrowRight')next=1-index;else if(e.key==='Home')next=0;else if(e.key==='End')next=1;else return;e.preventDefault();activate(next);tabs[next].focus();});});
+ tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activate(index));tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowLeft')next=(index-1+tabs.length)%tabs.length;else if(e.key==='ArrowRight')next=(index+1)%tabs.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;e.preventDefault();activate(next);tabs[next].focus();});});
  let cards=[...document.querySelectorAll('.sample-card')];const dialog=document.getElementById('sampleViewer'),stage=document.getElementById('sampleStage'),canvas=document.getElementById('sampleCanvas'),img=document.getElementById('sampleImage');
  let current=0,zoom=1,opener=null,drag=null,scrollBefore='';
  const get=id=>document.getElementById(id);
@@ -39,7 +39,7 @@ function ready(){
   img.alt=cards[current].dataset.title||('چارت نمونه ترید '+(current+1));img.src=cards[current].dataset.full;stage.scrollTo(0,0);
  }
  img.addEventListener('load',()=>{img.hidden=false;layout();});img.addEventListener('error',()=>{img.hidden=true;get('sampleError').hidden=false;});
- document.querySelectorAll('.sample-card,.road-image-card').forEach(card=>card.addEventListener('click',()=>{cards=[...document.querySelectorAll(card.classList.contains('road-image-card')?'.road-image-card':'.sample-card')];const index=cards.indexOf(card);opener=card;scrollBefore=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();show(index);get('sampleClose').focus();}));
+ document.querySelectorAll('.sample-card,.road-image-card').forEach(card=>card.addEventListener('click',()=>{const isRoadImg=card.classList.contains('road-image-card');const selector=isRoadImg?'.road-image-card':'.sample-card';const scope=card.closest(isRoadImg?'.road-image-gallery':'.sample-grid')||document;cards=[...scope.querySelectorAll(selector)];const index=cards.indexOf(card);opener=card;scrollBefore=document.body.style.overflow;document.body.style.overflow='hidden';dialog.showModal();show(index);get('sampleClose').focus();}));
  get('sampleClose').addEventListener('click',()=>dialog.close());
  dialog.addEventListener('close',()=>{document.body.style.overflow=scrollBefore;drag=null;opener?.focus();});
  get('sampleNext').addEventListener('click',()=>show(current+1));get('samplePrevious').addEventListener('click',()=>show(current-1));get('sampleZoomIn').addEventListener('click',()=>setZoom(zoom+.5));get('sampleZoomOut').addEventListener('click',()=>setZoom(zoom-.5));get('sampleFit').addEventListener('click',()=>{zoom=1;layout();stage.scrollTo(0,0);});
