@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=26">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -376,6 +376,38 @@
 <section class="view roadmap" id="view-roadmap" dir="rtl">
 <h1 class="page-title"><bdi dir="ltr">Roadmap</bdi></h1>
 <p class="page-sub">راهنمای استراتژی — منطق دو کیل‌زون و قاعدهٔ اصلی ورود</p>
+
+<article class="liquidity-concept" aria-labelledby="liquidity-concept-title">
+  <span class="liquidity-eyebrow">کانسپت کلی استراتژی</span>
+  <h2 id="liquidity-concept-title">اول نوع نقدینگی، بعد جهت ستاپ</h2>
+  <p class="liquidity-intro">در این استراتژی، نقدینگی را به دو نوع تقسیم می‌کنیم:</p>
+  <div class="liquidity-types">
+    <div><span>۱ · خارجی</span><strong><bdi dir="ltr">BSL | SSL</bdi></strong></div>
+    <div><span>۲ · داخلی</span><strong><bdi dir="ltr">FVG | OB</bdi></strong></div>
+  </div>
+  <div class="liquidity-scenarios">
+    <section class="liquidity-case">
+      <span class="liquidity-case-number">حالت ۱ · ادامه روند</span>
+      <h3>رسیدن به <bdi dir="ltr">BSL / SSL</bdi> خارجی <em>با FVG</em></h3>
+      <p>صبر می‌کنیم قیمت به درون <strong>آخرین FVG لگِ رسیدن به نقدینگی</strong> برگردد؛ سپس در جهت روند دنبال ستاپ می‌گردیم.</p>
+      <div class="liquidity-result">فقط آخرین FVG مهم است</div>
+    </section>
+    <section class="liquidity-case">
+      <span class="liquidity-case-number">حالت ۲ · برگشت</span>
+      <h3>رسیدن به <bdi dir="ltr">BSL / SSL</bdi> خارجی <em>بدون FVG</em></h3>
+      <p>اگر لگِ رسیدن به نقدینگی FVG نداشته باشد، می‌توانیم <strong>در جهت مخالف حرکتِ رسیدن به سطح</strong> دنبال ستاپ ورود باشیم.</p>
+      <div class="liquidity-result">ستاپ در جهت مخالف حرکت</div>
+    </section>
+  </div>
+  <section class="liquidity-exception">
+    <span class="liquidity-eyebrow">استثنای مهم · اول این مورد را بررسی کن</span>
+    <h3>برخورد به BSL یا SSL داخلی</h3>
+    <p>اینجا <strong>داشتن یا نداشتن FVG در لگ آخر مهم نیست.</strong> در هر دو حالت، در جهت مخالف حرکتِ رسیدن به سطح دنبال ستاپ می‌گردیم.</p>
+    <p>طبق منطق این استراتژی، گرفتن BSL / SSL داخلی به‌تنهایی به معنی تغییر جهت اصلی نیست؛ انتظار ما در این ناحیه، برگشت قیمت است.</p>
+    <div class="liquidity-result">با FVG یا بدون FVG ← انتظار ستاپ برگشتی</div>
+  </section>
+  <p class="liquidity-footnote">«BSL / SSL داخلی» در استثنای بالا، به سطوح نقدینگی داخل ساختار اشاره دارد و با عنوان «نقدینگی داخلی: FVG / OB» در تقسیم‌بندی بالا متفاوت است. جهت مشخص‌شده، جهت جست‌وجوی ستاپ است؛ ورود همچنان به تکمیل تأییدهای مدل انتخابی نیاز دارد.</p>
+</article>
 <div class="road-tabs" role="tablist" aria-label="راهنمای استراتژی"><button type="button" id="road-tab-rules" role="tab" aria-selected="true" aria-controls="road-rules" tabindex="0">قوانین و شماتیک</button><button type="button" id="road-tab-examples" role="tab" aria-selected="false" aria-controls="road-examples" tabindex="-1">نمونه ورودها <span>۸۶</span></button><button type="button" id="road-tab-jan2026" role="tab" aria-selected="false" aria-controls="road-jan2026" tabindex="-1">نمونه ورودهای <bdi dir="ltr">January 2026</bdi> <span id="jan2026-count">25</span></button></div><div id="road-rules" role="tabpanel" aria-labelledby="road-tab-rules"><article class="panel current-roadmap"><h2>چک‌لیست فعلی — دو مدل ورود</h2><p>انتخاب مسیر در مرحله دوم چک‌لیست است: «با CRT/BOX» برای مدل اول و «بدون CRT/BOX» برای مدل دوم. چک‌لیست فقط برای تیک‌زدن است؛ توضیحات و قوانین در همین Roadmap قرار دارند. مهلت C2 و C3 و تارگت ثابت ۲R همچنان در هر دو مدل برقرار است. تیک نهایی پروپالشن، تأیید سوئینگ‌بودن مرجع و شکست آن با کلوز یک‌دقیقه‌ای است.</p><p>قیمت ابتدا به POI معتبر از نوع BSL / SSL / FVG / OB می‌رسد. SMT تأیید اضافه و اختیاری است. ستاپ ناقص = No Trade؛ تارگت هر دو مدل ثابت ۲R است.</p>
 <h3>مهلت C2 و C3 — مشترک هر دو مدل</h3><p>C1 اولین کندل ۱۵ دقیقه‌ای برخورد به POI است. فرصت ورود در C2 و C3 بررسی می‌شود. بعد از C3 معمولاً فرصت تمام است؛ اگر C2 و C3 حرکت را انجام داده‌اند و ورود نداده‌اند، روی برگشت بعدی دنبال ورود همان ستاپ نیستیم و ستاپ جدید لازم است. مدل دوم از برخورد C1 بررسی می‌شود اما مهلت بیشتری ندارد.</p>
 <h3>مدل اول | CRT / BOX</h3><ol><li>برخورد C1 به POI معتبر.</li><li>انتخاب CRT یا BOX در ۱۵ دقیقه. C2 نقدینگی C1 را می‌گیرد. BOX: برای فروش زیر BSL و برای خرید بالای SSL با بدنه کلوز می‌دهد؛ رنگ C2 مخالف C1 است. CRT: طبق تعریف اختصاصی مدل، سایه C2 زیر BSL یا بالای SSL می‌رود؛ شکل کندل مهم است و رنگ شرط نیست.</li><li>در یک دقیقه، لگ کوتاهِ گرفتن نقدینگی با برگشت سریع: CISD؛ لگ بلند با دیسپلیسمنت و دورشدن از سطح: MSS.</li><li>پولبک به ۵۰٪ لگ ایجادکننده CISD / MSS الزامی است. BB گزینه این مسیر نیست.</li><li>سه کندل یک‌دقیقه‌ای بعد از کندل تأیید که متوالی در جهت حرکت کلوز بدهند، Follow Through و الزام Stop Run را مشخص می‌کنند. با یک یا دو کلوز، SR اجباری نیست.</li><li>در حالت Follow Through: پس از رسیدن به ۵۰٪، سوئینگ تشکیل می‌شود؛ قیمت فاصله می‌گیرد، دوباره پولبک می‌زند و نقدینگی همان سوئینگ را می‌گیرد. انجام SR باید جداگانه تأیید شود.</li><li>شکست پروپالشن بلاکِ سوئینگ‌دار با کلوز یک‌دقیقه‌ای؛ سپس ورود با تارگت ثابت ۲R.</li></ol>
@@ -490,5 +522,5 @@ if ('serviceWorker' in navigator) {
 <dialog id="sampleViewer" aria-label="نمایش نمونه ترید"><div class="viewer-shell"><header class="viewer-toolbar"><strong id="sampleTitle"></strong><div class="viewer-controls"><button type="button" id="sampleZoomOut" aria-label="کوچک‌نمایی">−</button><output id="sampleZoomValue" dir="ltr">100%</output><button type="button" id="sampleZoomIn" aria-label="بزرگ‌نمایی">+</button><button type="button" id="sampleFit">اندازه مناسب</button><button type="button" id="sampleClose" aria-label="بستن تصویر">✕</button></div></header><div id="sampleStage" tabindex="0" aria-label="تصویر؛ برای جابه‌جایی پس از زوم بکشید"><div id="sampleCanvas"><img id="sampleImage" alt="" draggable="false"></div><p id="sampleError" hidden>تصویر بارگذاری نشد. دوباره تلاش کنید.</p></div><footer class="viewer-footer" dir="ltr"><button type="button" id="samplePrevious">← قبلی</button><span id="sampleCounter"></span><button type="button" id="sampleNext">بعدی →</button></footer></div></dialog><dialog id="addAccountDialog" aria-labelledby="addAccountTitle"><form id="addAccountForm"><h2 id="addAccountTitle">افزودن حساب معاملاتی</h2><p class="field-desc">معاملات و تنظیمات هر حساب جدا نگه داشته می‌شوند.</p><div class="field"><label for="newAccountName">نام حساب</label><input id="newAccountName" required maxlength="80" placeholder="مثلاً حساب چالش ۵۰ هزار دلاری"></div><div class="field"><label for="newAccountFirm">شرکت پراپ</label><input id="newAccountFirm" maxlength="80" placeholder="اختیاری"></div><div class="form-grid-2"><div class="field"><label for="newAccountBalance">موجودی اولیه ($)</label><input id="newAccountBalance" type="number" min="0.01" step="0.01" required></div><div class="field"><label for="newAccountCommission">کمیسیون هر لات ($)</label><input id="newAccountCommission" type="number" min="0" step="0.01" value="0" required></div></div><div class="field"><label for="newAccountStage">مرحله حساب</label><select id="newAccountStage"><option value="evaluation">چالش</option><option value="funded">فاندد</option><option value="personal">شخصی</option></select></div><p id="newAccountError" role="alert"></p><div class="form-actions"><button class="btn" type="button" id="cancelAddAccount">انصراف</button><button class="btn btn-primary" type="submit" id="createAccountSubmit">ساخت حساب</button></div></form></dialog><small id="buildVersion" style="display:block;text-align:center;padding:8px;color:var(--muted)">نسخه ۲۵ · اعتبار آزمایشی و مدیریت</small>
 <dialog id="subscriptionDialog" class="sub-dialog" dir="rtl" aria-labelledby="subTitle"><header><h2 id="subTitle">اعتبار حساب</h2><button class="btn" id="subscriptionClose" aria-label="بستن">✕</button></header><p id="subscriptionExpiry"></p><p id="subscriptionNotice"></p><p>برای تمدید اعتبار با مدیر ژورنال هماهنگ کنید. اطلاعات و خروجی معاملات قبلی بعد از انقضا در دسترس می‌ماند.</p></dialog>
 <dialog id="subscriptionAdminDialog" class="sub-dialog" dir="rtl" aria-labelledby="subAdminTitle"><header><h2 id="subAdminTitle">مدیریت کاربران و اعتبار</h2><button class="btn" id="subscriptionAdminClose" aria-label="بستن">✕</button></header><label>جست‌وجوی کاربر<input id="subscriptionSearch" type="search" placeholder="ایمیل یا شناسه" dir="ltr"></label><button class="btn" id="subscriptionAdminRefresh">تازه‌سازی</button><div id="subscriptionAdminRows"></div></dialog>
-<script src="app.js?v=25"></script><script src="ui-enhance.js?v=25"></script><script src="ux.js?v=25"></script><script src="subscription.js?v=25"></script></body>
+<script src="app.js?v=26"></script><script src="ui-enhance.js?v=26"></script><script src="ux.js?v=26"></script><script src="subscription.js?v=26"></script></body>
 </html>
