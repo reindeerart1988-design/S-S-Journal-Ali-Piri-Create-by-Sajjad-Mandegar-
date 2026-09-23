@@ -351,10 +351,10 @@ function stepDone(step, state){
 function stepsDoneCount(steps, state){ return steps.filter(s=>stepDone(s,state)).length; }
 
 /* Killzone windows — defined and displayed in NEW YORK local time (DST handled automatically).
-   Two non-overlapping windows: 08:30–11:00 and 11:00–15:00. */
+   Two non-overlapping windows: 09:30–11:00 and 11:00–16:00. */
 const KILLZONES = [
-  { label:'NY AM', h1:8, m1:30, h2:11, m2:0 },
-  { label:'NY PM', h1:11, m1:0, h2:15, m2:0 }
+  { label:'NY AM', h1:9, m1:30, h2:11, m2:0 },
+  { label:'NY PM', h1:11, m1:0, h2:16, m2:0 }
 ];
 const NY_TZ = 'America/New_York';
 const KZ_OPTIONS = ['NY AM','NY PM','Out of Killzone','NY Session','London'];
