@@ -889,3 +889,16 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 .liquidity-exception .liquidity-result{background:rgba(199,140,39,.14)}
 .liquidity-footnote{font-size:13px;line-height:2;color:var(--muted);margin:18px 0 0}
 @media(max-width:640px){.liquidity-types,.liquidity-scenarios{grid-template-columns:1fr}.liquidity-case,.liquidity-exception{padding:16px}.liquidity-concept h3{font-size:18px}.liquidity-types>div{padding:12px 16px}}
+
+/* Critical entry filters */
+#road-filters .entry-filters{display:grid;gap:20px;margin:20px 0}
+#road-filters .entry-filter{padding:clamp(16px,3vw,28px);min-width:0}
+#road-filters h3{font-size:clamp(18px,2vw,23px);line-height:1.9;margin:0 0 10px;color:var(--ink)}
+#road-filters p,#road-filters figcaption{line-height:2;overflow-wrap:anywhere}
+#road-filters .filter-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;margin-top:20px}
+#road-filters figure{margin:0;min-width:0}
+#road-filters .road-image-card{width:100%;display:block;padding:0}
+#road-filters img{display:block;width:100%;height:auto;max-height:440px;object-fit:contain;background:#eef0f3}
+#road-filters figcaption{font-size:14px;color:var(--muted);padding-top:10px}
+.road-tabs{flex-wrap:wrap}.road-tabs button{white-space:normal;min-height:44px}
+@media(max-width:600px){#road-filters .filter-images{grid-template-columns:1fr}.road-tabs button{flex:1 1 140px}}
