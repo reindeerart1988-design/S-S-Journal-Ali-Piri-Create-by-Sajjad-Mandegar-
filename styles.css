@@ -902,3 +902,8 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 #road-filters figcaption{font-size:14px;color:var(--muted);padding-top:10px}
 .road-tabs{flex-wrap:wrap}.road-tabs button{white-space:normal;min-height:44px}
 @media(max-width:600px){#road-filters .filter-images{grid-template-columns:1fr}.road-tabs button{flex:1 1 140px}}
+
+/* Roadmap navigation must precede all long educational content. */
+.road-version{font-size:13px;color:var(--muted);font-weight:400;margin-inline-start:12px}
+#view-roadmap>.road-tabs{width:100%;box-sizing:border-box}
+#road-tab-filters{border:1px solid var(--green,#00bd91)}
