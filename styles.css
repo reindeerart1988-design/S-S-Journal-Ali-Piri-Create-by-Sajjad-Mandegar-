@@ -907,3 +907,14 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 .road-version{font-size:13px;color:var(--muted);font-weight:400;margin-inline-start:12px}
 #view-roadmap>.road-tabs{width:100%;box-sizing:border-box}
 #road-tab-filters{border:1px solid var(--green,#00bd91)}
+
+/* Entry timing emphasis: separate from the numbered reference filters. */
+#road-filters .entry-timing-highlight{margin:20px 0 28px;padding:clamp(18px,3vw,28px);border:1px solid #aa7b38;border-inline-start:5px solid #eab75c;border-radius:14px;background:linear-gradient(135deg,rgba(234,183,92,.16),rgba(234,183,92,.05));color:var(--ink);box-sizing:border-box}
+#road-filters .entry-timing-label{font-size:13px;font-weight:700;color:var(--ink)}
+#road-filters .entry-timing-highlight h3{margin:8px 0 20px}
+#road-filters .entry-timing-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+#road-filters .entry-timing-grid>div{padding:16px;border:1px solid rgba(170,123,56,.45);border-radius:10px;min-width:0}
+#road-filters .entry-timing-grid h4{font-size:16px;line-height:1.9;margin:0 0 8px}
+#road-filters .entry-timing-grid p{margin:0}
+#road-filters .entry-timing-priority{margin:20px 0 0;padding-top:16px;border-top:1px solid rgba(170,123,56,.45);font-size:17px}
+@media(max-width:800px){#road-filters .entry-timing-grid{grid-template-columns:1fr}}
