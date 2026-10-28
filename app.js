@@ -327,14 +327,14 @@ SETUPS.crt24={id:'crt24',label:'با CRT/BOX',tag:'CRT / BOX',accent:'blue',step
  {n:'5',title:'Stop Run (SR)',tf:'1m',type:'conditional',followKey:'ft24',followLabel:'Follow Through',condKey:'sr24',condLabel:'SR'},
  {n:'6',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
 ]};
-SETUPS.cisd24={id:'cisd24',label:'بدون CRT/BOX',tag:'iFVG / CISD / MSS',accent:'blue',steps:[
- CURRENT_POI,MODEL24,
- {n:'3',title:'Confirmation',tf:'1m',multi:true,requiredKey:'ifvg',anyOf:['entryCisd','entryMss'],items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg',exclusive:'confirmation'},{key:'entryMss',label:'MSS',en:true,requires:'ifvg',exclusive:'confirmation'}]},
- {n:'4',title:'بلاک قبل از CISD',tf:'1m',items:[{key:'blockYes23',label:'دارد'},{key:'blockNo23',label:'ندارد'}]},
- {n:'5',title:'بازگشت قیمت به:',tf:'1m',items:[{key:'blockPull23',label:'OB',en:true,requires:'blockYes23'},{key:'cisdPull23',label:'BB',en:true,requires:'blockNo23'}]},
- {n:'6',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
+SETUPS.cisd24={id:'cisd24',label:'چک‌لیست ورود',tag:'iFVG / CISD / MSS',accent:'blue',steps:[
+ CURRENT_POI,
+ {n:'2',title:'Confirmation',tf:'1m',multi:true,requiredKey:'ifvg',anyOf:['entryCisd','entryMss'],items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg',exclusive:'confirmation'},{key:'entryMss',label:'MSS',en:true,requires:'ifvg',exclusive:'confirmation'}]},
+ {n:'3',title:'بلاک قبل از CISD',tf:'1m',items:[{key:'blockYes23',label:'دارد'},{key:'blockNo23',label:'ندارد'}]},
+ {n:'4',title:'بازگشت قیمت به:',tf:'1m',items:[{key:'blockPull23',label:'OB',en:true,requires:'blockYes23'},{key:'cisdPull23',label:'BB',en:true,requires:'blockNo23'}]},
+ {n:'5',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
 ]};
-const SETUP_ORDER = ['crt24','cisd24'];
+const SETUP_ORDER = ['cisd24'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
@@ -348,7 +348,7 @@ function poiReady36(state){
  if((state.bsl||state.ssl)&&state.routeWithFvg&&!zone)return false;
  return !zone||!!state.returnTwoLegs;
 }
-function resetEntry36(state,steps){for(const it of steps.filter(x=>Number(x.n)>=3).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
+function resetEntry36(state,steps){for(const it of steps.filter(x=>Number(x.n)>=2).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
 function routeMarkup36(state){
  const chip=(key,label)=>`<button type="button" class="chip ${state[key]?'on':''}" data-route36="${key}" aria-pressed="${!!state[key]}">${label}</button>`;
  let html='';
@@ -367,7 +367,7 @@ function routeMarkup36(state){
 function stepDone(step, state){
   state = state || {};
   if(step===CURRENT_POI)return poiReady36(state);
-  if(Number(step.n)>=3 && !poiReady36(state))return false;
+  if(Number(step.n)>=2 && !poiReady36(state))return false;
   if(step.type==='model') return true;
   if(step.skipIfKey && state[step.skipIfKey]) return true;
   if(step.type==='conditional'){
@@ -709,7 +709,7 @@ function renderChecklistBlocks(steps, state, ns){
         </div>`;
       body = `
         <div class="chips">
-          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(Number(step.n)>=3&&!poiReady36(state))?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
+          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(Number(step.n)>=2&&!poiReady36(state))?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
         </div>`;
     }
     if(step===CURRENT_POI)body+=routeMarkup36(state);
@@ -749,7 +749,7 @@ function wireChecklist(el, steps, state, after){
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const key = chip.dataset.key;
-      if(Number(chip.dataset.group)>=3&&!poiReady36(state))return;
+      if(Number(chip.dataset.group)>=2&&!poiReady36(state))return;
       const isOn = !!state[key];
       if(chip.dataset.multi!=='1'){
         const step = steps.find(s=>s.n===chip.dataset.group);
@@ -793,22 +793,8 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'crt24';
-function renderFormSetupSwitch(){
-  const el = document.getElementById('formSetupSwitch');
-  if(!el) return;
-  el.innerHTML = SETUP_ORDER.map(id=>{
-    const s = SETUPS[id];
-    return `<button type="button" class="chip accent-${s.accent} ${formSetupId===id?'on':''}" data-form-setup="${id}">${s.label}</button>`;
-  }).join('');
-  el.querySelectorAll('[data-form-setup]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const id = btn.dataset.formSetup;
-      if(id===formSetupId) return;
-      formSetupId = id; formChecklistState = {}; renderFormChecklist();
-    });
-  });
-}
+let formSetupId = 'cisd24';
+function renderFormSetupSwitch(){document.getElementById('formSetupSwitch')?.replaceChildren();}
 function renderFormChecklist(){
   document.getElementById('formSetupSwitch')?.replaceChildren();
   const el = document.getElementById('formChecklist');
@@ -816,7 +802,7 @@ function renderFormChecklist(){
   el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
   wireChecklist(el, steps, formChecklistState, renderFormChecklist);
 }
-function buildFormChecklist(setupId, checked){ formSetupId = SETUPS[setupId] ? setupId : 'standard'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
+function buildFormChecklist(setupId, checked){ formSetupId = 'cisd24'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
 
 function applyResultUI(){
   const res = getSeg('segResult');
@@ -865,7 +851,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('crt24');
+  buildFormChecklist('cisd24');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -1667,23 +1653,8 @@ function renderCalendar(){
 /* ============================================================
    STANDALONE CHECKLIST
 ============================================================ */
-let currentSetupId = 'crt24';
-function renderSetupPicker(){
-  const el = document.getElementById('setupPicker');
-  el.innerHTML = SETUP_ORDER.map(id=>{
-    const s = SETUPS[id];
-    const state = standaloneChecklistState[id] || (standaloneChecklistState[id]={});
-    const done = stepsDoneCount(s.steps, state);
-    return `<button type="button" class="setup-card accent-${s.accent} ${currentSetupId===id?'active':''}" data-setup="${id}">
-        <div class="setup-card-top"><span class="setup-tag en">${s.tag}</span>${done>0?`<span class="setup-progress-pill en">${done}/${s.steps.length}</span>`:''}</div>
-        <div class="setup-card-title">${s.label}</div>
-        <div class="setup-card-desc">${s.desc}</div>
-      </button>`;
-  }).join('');
-  el.querySelectorAll('.setup-card').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ currentSetupId = btn.dataset.setup; renderStandaloneChecklist(); });
-  });
-}
+let currentSetupId = 'cisd24';
+function renderSetupPicker(){document.getElementById('setupPicker')?.replaceChildren();}
 function renderStandaloneChecklist(){
   document.getElementById('setupPicker')?.replaceChildren();
   const body = document.getElementById('checklistBody');
@@ -1699,7 +1670,7 @@ function renderStandaloneChecklist(){
   document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
   document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='crt24'; renderStandaloneChecklist(); });
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='cisd24'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
   if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
