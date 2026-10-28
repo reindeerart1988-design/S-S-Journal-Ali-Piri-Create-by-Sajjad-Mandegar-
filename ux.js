@@ -19,9 +19,10 @@ function ready(){
  document.querySelectorAll('.sample-card img,.road-image-card img').forEach(preview=>{
   preview.addEventListener('error',()=>{if(preview.dataset.retried)return;preview.dataset.retried='1';const url=new URL(preview.closest('[data-full]').dataset.full,location.href);url.searchParams.set('retry','16');preview.src=url.href;});
  });
- const tabs=[document.getElementById('road-tab-rules'),document.getElementById('road-tab-filters'),document.getElementById('road-tab-examples'),document.getElementById('road-tab-jan2026'),document.getElementById('road-tab-march'),document.getElementById('road-tab-april')].filter(Boolean);
- function activate(index){tabs.forEach((tab,i)=>{const selected=i===index;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;document.getElementById(tab.getAttribute('aria-controls')).hidden=!selected;});}
- tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activate(index));tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowLeft')next=(index-1+tabs.length)%tabs.length;else if(e.key==='ArrowRight')next=(index+1)%tabs.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;e.preventDefault();activate(next);tabs[next].focus();});});
+ const allTabs=[...document.querySelectorAll('.road-tabs [role="tab"]')];
+ const visibleTabs=()=>allTabs.filter(tab=>!tab.hidden);
+ function activate(tab){if(!tab||tab.hidden)return;allTabs.forEach(t=>{const selected=t===tab;t.setAttribute('aria-selected',String(selected));t.tabIndex=selected?0:-1;document.getElementById(t.getAttribute('aria-controls')).hidden=!selected;});}
+ allTabs.forEach(tab=>{tab.addEventListener('click',()=>activate(tab));tab.addEventListener('keydown',e=>{const tabs=visibleTabs(),index=tabs.indexOf(tab);let next;if(e.key==='ArrowLeft')next=(index-1+tabs.length)%tabs.length;else if(e.key==='ArrowRight')next=(index+1)%tabs.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;e.preventDefault();activate(tabs[next]);tabs[next].focus();});});
  let cards=[...document.querySelectorAll('.sample-card')];const dialog=document.getElementById('sampleViewer'),stage=document.getElementById('sampleStage'),canvas=document.getElementById('sampleCanvas'),img=document.getElementById('sampleImage');
  let current=0,zoom=1,opener=null,drag=null,scrollBefore='';
  const get=id=>document.getElementById(id);
