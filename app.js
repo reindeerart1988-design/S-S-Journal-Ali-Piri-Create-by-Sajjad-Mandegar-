@@ -288,7 +288,7 @@ const SETUPS = {standard:{id:'standard',label:'چک‌لیست استراتژی'
  {n:'5',title:'تأیید نهایی پروپالشن بلاک',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز یک‌دقیقه‌ای'}]}
 ]}};
 
-const CURRENT_POI = {...STEP_POI,items:['SSL','BSL','FVG','OB'].map(label=>({key:label.toLowerCase(),label,en:true}))};
+const CURRENT_POI = {...STEP_POI,items:['SSL','BSL','FVG','BB','iFVG'].map(label=>({key:label==='iFVG'?'poiIfvg':label.toLowerCase(),label,en:true}))};
 const PROP_CONFIRM={title:'شکست Propulsion Block',tf:'1m',multi:true,items:[{key:'propulsionSwing',label:'پروپالشن بلاک حتماً سوئینگ است'},{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز و تأیید حرکت',requires:'propulsionSwing'}]};
 const FIXED_TARGET={title:'ورود با تارگت ثابت',tf:'',items:[{key:'rrTwoConfirmed',label:'تارگت ثابت Risk to Reward = 1:2'}]};
 SETUPS.crtModel={id:'crtModel',label:'مدل اول | CRT',tag:'CRT',accent:'blue',desc:'Liquidity → CRT Box → Shift → PD Zone → Confirmation → Entry',steps:[
@@ -327,11 +327,11 @@ SETUPS.crt24={id:'crt24',label:'با CRT/BOX',tag:'CRT / BOX',accent:'blue',step
  {n:'5',title:'Stop Run (SR)',tf:'1m',type:'conditional',followKey:'ft24',followLabel:'Follow Through',condKey:'sr24',condLabel:'SR'},
  {n:'6',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
 ]};
-SETUPS.cisd24={id:'cisd24',label:'بدون CRT/BOX',tag:'iFVG / CISD',accent:'blue',steps:[
+SETUPS.cisd24={id:'cisd24',label:'بدون CRT/BOX',tag:'iFVG / CISD / MSS',accent:'blue',steps:[
  CURRENT_POI,MODEL24,
- {n:'3',title:'Confirmation',tf:'1m',multi:true,items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg'}]},
+ {n:'3',title:'Confirmation',tf:'1m',multi:true,requiredKey:'ifvg',anyOf:['entryCisd','entryMss'],items:[{key:'ifvg',label:'iFVG',en:true},{key:'entryCisd',label:'CISD',en:true,requires:'ifvg',exclusive:'confirmation'},{key:'entryMss',label:'MSS',en:true,requires:'ifvg',exclusive:'confirmation'}]},
  {n:'4',title:'بلاک قبل از CISD',tf:'1m',items:[{key:'blockYes23',label:'دارد'},{key:'blockNo23',label:'ندارد'}]},
- {n:'5',title:'پولبک',tf:'1m',items:[{key:'blockPull23',label:'بلاک',requires:'blockYes23'},{key:'cisdPull23',label:'CISD',en:true,requires:'blockNo23'}]},
+ {n:'5',title:'بازگشت قیمت به:',tf:'1m',items:[{key:'blockPull23',label:'OB',en:true,requires:'blockYes23'},{key:'cisdPull23',label:'BB',en:true,requires:'blockNo23'}]},
  {n:'6',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
 ]};
 const SETUP_ORDER = ['crt24','cisd24'];
@@ -345,6 +345,7 @@ function stepDone(step, state){
     if(!state[step.followKey]) return true; /* no follow-through => this step isn't required */
     return !!state[step.condKey];
   }
+  if(step.anyOf) return !!state[step.requiredKey] && step.anyOf.some(key=>!!state[key]);
   if(step.multi) return step.items.every(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
   return step.items.some(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
 }
@@ -481,7 +482,7 @@ function migrateTrade(t){
   const c = m.checklist || {};
   m.checklist = {
     ...c, smtYes:!!c.smtYes || (!c.smtNo && !!c.smtSweep), smtNo:!!c.smtNo && !c.smtYes, withCrt:!c.withoutCrt && !!(c.withCrt || c.crt || c.box || c.crt_box), withoutCrt:!!c.withoutCrt,
-    entryCisd:!!(c.ifvg && c.entryCisd), pullbackCisd:!!c.pullbackCisd,
+    entryCisd:!!(c.ifvg && c.entryCisd), entryMss:!!(c.ifvg && c.entryMss && !c.entryCisd), bb:!!c.bb, poiIfvg:!!c.poiIfvg, pullbackCisd:!!c.pullbackCisd,
     bsl: !!(c.bsl || c.bsl_sweep), ssl: !!(c.ssl || c.ssl_sweep),
     fvg: !!(c.fvg || c.fvg_hit), ob: !!(c.ob || c.ob_hit),
     crt: !!(c.crt || c.crt_box), box: !!c.box,
@@ -694,7 +695,7 @@ function renderChecklistBlocks(steps, state, ns){
 function wireChecklist(el, steps, state, after){
  el.querySelectorAll('[data-entry-model]').forEach(btn=>btn.addEventListener('click',()=>{
    const id=btn.dataset.entryModel;
-   const common={}; for(const k of ['bsl','ssl','fvg','ob','smtYes','smtNo']) if(state[k]) common[k]=true;
+   const common={}; for(const k of ['bsl','ssl','fvg','bb','poiIfvg','smtYes','smtNo']) if(state[k]) common[k]=true;
    if(el.id==='formChecklist') {if(formSetupId===id)return; formSetupId=id; formChecklistState=common;}
    else {if(currentSetupId===id)return; currentSetupId=id; standaloneChecklistState[id]=common;}
    after();
@@ -711,8 +712,9 @@ function wireChecklist(el, steps, state, after){
       }
       const item = steps.flatMap(s=>s.items||[]).find(it=>it.key===key);
       if(item?.requires && !state[item.requires]) return;
+      if(item?.exclusive && !isOn){for(const it of steps.flatMap(s=>s.items||[])){if(it.exclusive===item.exclusive)state[it.key]=false;}}
       state[key] = !isOn;
-      if(key==='ifvg' && !state.ifvg) state.entryCisd=false;
+      if(key==='ifvg' && !state.ifvg){state.entryCisd=false;state.entryMss=false;}
       if(key==='propulsionSwing' && !state.propulsionSwing) state.propulsionClose=false;
       for(const it of steps.flatMap(s=>s.items||[])){ if(it.requires && !state[it.requires]) state[it.key]=false; }
       after();
@@ -1764,7 +1766,7 @@ const CSV_COLS = [
   ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
   ['commission','__commission'], ['net_pl','__net'],
   ['setup','__setup'],
-  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'],
+  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
   ['with_crt','cl.withCrt'], ['without_crt','cl.withoutCrt'], ['entry_cisd','cl.entryCisd'], ['pullback_cisd','cl.pullbackCisd'],
   ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
   
@@ -1842,7 +1844,7 @@ function parseCsvTrades(text){
       lotSize: Number(g('lot'))||0, grossPL: Number(g('gross_pl'))||0,
       entryReason: g('entry_reason'), exitReason: g('exit_reason'), notes: g('notes'),
       checklist: {
-        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'),
+        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'), bb:bool('bb'), poiIfvg:bool('poi_ifvg'), entryMss:bool('entry_mss'), blockYes23:bool('block_yes'), blockNo23:bool('block_no'), blockPull23:bool('return_ob'), cisdPull23:bool('return_bb'),
         crt:bool('crt'), box:bool('box'),withCrt:bool('with_crt'),withoutCrt:bool('without_crt'),entryCisd:bool('entry_cisd'),pullbackCisd:bool('pullback_cisd'),ifvg:bool('ifvg'),
         cisd:bool('cisd'), mss:bool('mss'),
         ob50:bool('ob50'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
