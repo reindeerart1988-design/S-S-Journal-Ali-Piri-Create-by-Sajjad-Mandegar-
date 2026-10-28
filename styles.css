@@ -929,3 +929,5 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 #tipsDialog::backdrop{background:#000b}
 #tipsFrame{display:block;width:100%;height:calc(100% - 90px);border:0;background:#fff;margin-top:12px}
 @media(max-width:600px){.tips-card{padding:16px}.tips-actions>.btn{flex:1;text-align:center}#tipsDialog{padding:10px}#tipsFrame{height:calc(100% - 125px)}}
+
+.poi-route36{border-top:1px solid var(--border,#334155);margin-top:14px;padding-top:12px;display:grid;gap:10px}.poi-route36 strong{font-size:13px;color:var(--muted,#9baabd)}.poi-route36 .chip{white-space:normal;line-height:1.8;text-align:center}
