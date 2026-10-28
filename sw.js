@@ -1,5 +1,5 @@
-const CACHE_NAME='ss-journal-v36';
-const APP_SHELL=['./','./index.html','./styles.css?v=36','./app.js?v=36','./ui-enhance.js?v=36','./ux.js?v=36','./subscription.js?v=36','./tips-private.js?v=36','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE_NAME='ss-journal-v37';
+const APP_SHELL=['./','./index.html','./styles.css?v=37','./app.js?v=37','./ui-enhance.js?v=37','./ux.js?v=37','./subscription.js?v=37','./tips-private.js?v=37','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('ss-journal-')&&k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
