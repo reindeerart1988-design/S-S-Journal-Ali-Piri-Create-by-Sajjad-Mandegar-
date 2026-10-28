@@ -288,7 +288,7 @@ const SETUPS = {standard:{id:'standard',label:'چک‌لیست استراتژی'
  {n:'5',title:'تأیید نهایی پروپالشن بلاک',tf:'1m',items:[{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز یک‌دقیقه‌ای'}]}
 ]}};
 
-const CURRENT_POI = {...STEP_POI,items:['SSL','BSL','FVG','BB','iFVG'].map(label=>({key:label==='iFVG'?'poiIfvg':label.toLowerCase(),label,en:true}))};
+const CURRENT_POI = {...STEP_POI,items:['SSL','BSL','FVG','iFVG','OB','RJB'].map(label=>({key:label==='iFVG'?'poiIfvg':label.toLowerCase(),label,en:true}))};
 const PROP_CONFIRM={title:'شکست Propulsion Block',tf:'1m',multi:true,items:[{key:'propulsionSwing',label:'پروپالشن بلاک حتماً سوئینگ است'},{key:'propulsionClose',label:'شکست پروپالشن بلاک با کلوز و تأیید حرکت',requires:'propulsionSwing'}]};
 const FIXED_TARGET={title:'ورود با تارگت ثابت',tf:'',items:[{key:'rrTwoConfirmed',label:'تارگت ثابت Risk to Reward = 1:2'}]};
 SETUPS.crtModel={id:'crtModel',label:'مدل اول | CRT',tag:'CRT',accent:'blue',desc:'Liquidity → CRT Box → Shift → PD Zone → Confirmation → Entry',steps:[
@@ -337,8 +337,37 @@ SETUPS.cisd24={id:'cisd24',label:'بدون CRT/BOX',tag:'iFVG / CISD / MSS',acce
 const SETUP_ORDER = ['crt24','cisd24'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
+const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
+const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs'];
+function entryZone36(state){return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
+function poiReady36(state){
+ if(!POI_KEYS36.some(k=>state[k]))return false;
+ if(state.ob&&!state.smtYes)return false;
+ if((state.bsl||state.ssl)&&!state.routeWithFvg&&!state.routeWithoutFvg)return false;
+ const zone=entryZone36(state);
+ if((state.bsl||state.ssl)&&state.routeWithFvg&&!zone)return false;
+ return !zone||!!state.returnTwoLegs;
+}
+function resetEntry36(state,steps){for(const it of steps.filter(x=>Number(x.n)>=3).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
+function routeMarkup36(state){
+ const chip=(key,label)=>`<button type="button" class="chip ${state[key]?'on':''}" data-route36="${key}" aria-pressed="${!!state[key]}">${label}</button>`;
+ let html='';
+ if(state.bsl||state.ssl){
+ html+=`<div class="poi-route36"><strong>نحوهٔ گرفته‌شدن:</strong><div class="chips">${chip('routeWithoutFvg','بدون FVG')}${chip('routeWithFvg','با FVG')}</div>`;
+ if(state.routeWithFvg)html+=`<strong>ناحیهٔ ورود بعدی:</strong><div class="chips">${chip('zoneFvg','FVG')}${chip('zoneIfvg','iFVG')}</div>`;
+ html+='</div>';
+ }
+ const zone=entryZone36(state);
+ if(zone){
+ const expected=zone==='fvg'&&state.routeWithFvg?(state.bsl?'Buy':state.ssl?'Sell':''):'';
+ html+=`<div class="poi-route36"><strong>شرط ضروری · 1m${expected?' · جهت مورد انتظار: '+expected:''}</strong><div class="chips">${chip('returnTwoLegs','بازگشت به '+(zone==='ifvg'?'iFVG':'FVG')+' با حداقل دو لگ در ۱ دقیقه')}</div></div>`;
+ }
+ return html;
+}
 function stepDone(step, state){
   state = state || {};
+  if(step===CURRENT_POI)return poiReady36(state);
+  if(Number(step.n)>=3 && !poiReady36(state))return false;
   if(step.type==='model') return true;
   if(step.skipIfKey && state[step.skipIfKey]) return true;
   if(step.type==='conditional'){
@@ -643,7 +672,7 @@ function helpPanel(step, ns){
 function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
   state = state || {};
-  const smtInfo = `<div class="cl-note">SMT با ES (اختیاری): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
+  const smtInfo = `<div class="cl-note">SMT با ES (${state.ob?'ضروری برای OB':'اختیاری'}): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
 
   state = state || {};
   ns = ns || 'default';
@@ -680,9 +709,10 @@ function renderChecklistBlocks(steps, state, ns){
         </div>`;
       body = `
         <div class="chips">
-          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${it.requires&&!state[it.requires]?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
+          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(Number(step.n)>=3&&!poiReady36(state))?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
         </div>`;
     }
+    if(step===CURRENT_POI)body+=routeMarkup36(state);
     let note = '';
     if(step.note) note += `<div class="cl-note">${step.note}</div>`;
     if(step.condNotes){
@@ -695,16 +725,31 @@ function renderChecklistBlocks(steps, state, ns){
 function wireChecklist(el, steps, state, after){
  el.querySelectorAll('[data-entry-model]').forEach(btn=>btn.addEventListener('click',()=>{
    const id=btn.dataset.entryModel;
-   const common={}; for(const k of ['bsl','ssl','fvg','bb','poiIfvg','smtYes','smtNo']) if(state[k]) common[k]=true;
+   const common={}; for(const k of [...POI_KEYS36,...ROUTE_KEYS36,'smtYes','smtNo']) if(state[k]) common[k]=true;
    if(el.id==='formChecklist') {if(formSetupId===id)return; formSetupId=id; formChecklistState=common;}
    else {if(currentSetupId===id)return; currentSetupId=id; standaloneChecklistState[id]=common;}
    after();
  }));
 
- el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';after();}));
+ el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';if(state.ob&&!state.smtYes)resetEntry36(state,steps);after();}));
+ el.querySelectorAll('[data-route36]').forEach(btn=>btn.addEventListener('click',()=>{
+ const key=btn.dataset.route36;
+ if(key==='routeWithFvg'||key==='routeWithoutFvg'){
+  if(state[key])return;
+  for(const k of ROUTE_KEYS36)state[k]=false;
+  state[key]=true;if(key==='routeWithFvg')state.zoneFvg=true;
+ }else if(key==='zoneFvg'||key==='zoneIfvg'){
+  if(!state.routeWithFvg||state[key])return;
+  state.zoneFvg=false;state.zoneIfvg=false;state[key]=true;state.returnTwoLegs=false;
+ }else if(key==='returnTwoLegs'){
+  if(!entryZone36(state))return;state.returnTwoLegs=!state.returnTwoLegs;
+ }
+ resetEntry36(state,steps);after();
+ }));
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const key = chip.dataset.key;
+      if(Number(chip.dataset.group)>=3&&!poiReady36(state))return;
       const isOn = !!state[key];
       if(chip.dataset.multi!=='1'){
         const step = steps.find(s=>s.n===chip.dataset.group);
@@ -714,6 +759,7 @@ function wireChecklist(el, steps, state, after){
       if(item?.requires && !state[item.requires]) return;
       if(item?.exclusive && !isOn){for(const it of steps.flatMap(s=>s.items||[])){if(it.exclusive===item.exclusive)state[it.key]=false;}}
       state[key] = !isOn;
+      if(POI_KEYS36.includes(key)){for(const k of ROUTE_KEYS36)state[k]=false;state.bb=false;resetEntry36(state,steps);}
       if(key==='ifvg' && !state.ifvg){state.entryCisd=false;state.entryMss=false;}
       if(key==='propulsionSwing' && !state.propulsionSwing) state.propulsionClose=false;
       for(const it of steps.flatMap(s=>s.items||[])){ if(it.requires && !state[it.requires]) state[it.key]=false; }
@@ -1766,7 +1812,7 @@ const CSV_COLS = [
   ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
   ['commission','__commission'], ['net_pl','__net'],
   ['setup','__setup'],
-  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
+  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['rjb','cl.rjb'], ['routeWithFvg','cl.routeWithFvg'], ['routeWithoutFvg','cl.routeWithoutFvg'], ['zoneFvg','cl.zoneFvg'], ['zoneIfvg','cl.zoneIfvg'], ['returnTwoLegs','cl.returnTwoLegs'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
   ['with_crt','cl.withCrt'], ['without_crt','cl.withoutCrt'], ['entry_cisd','cl.entryCisd'], ['pullback_cisd','cl.pullbackCisd'],
   ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
   
@@ -1844,7 +1890,7 @@ function parseCsvTrades(text){
       lotSize: Number(g('lot'))||0, grossPL: Number(g('gross_pl'))||0,
       entryReason: g('entry_reason'), exitReason: g('exit_reason'), notes: g('notes'),
       checklist: {
-        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'), bb:bool('bb'), poiIfvg:bool('poi_ifvg'), entryMss:bool('entry_mss'), blockYes23:bool('block_yes'), blockNo23:bool('block_no'), blockPull23:bool('return_ob'), cisdPull23:bool('return_bb'),
+        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'), bb:bool('bb'), rjb:bool('rjb'), routeWithFvg:bool('routeWithFvg'), routeWithoutFvg:bool('routeWithoutFvg'), zoneFvg:bool('zoneFvg'), zoneIfvg:bool('zoneIfvg'), returnTwoLegs:bool('returnTwoLegs'), poiIfvg:bool('poi_ifvg'), entryMss:bool('entry_mss'), blockYes23:bool('block_yes'), blockNo23:bool('block_no'), blockPull23:bool('return_ob'), cisdPull23:bool('return_bb'),
         crt:bool('crt'), box:bool('box'),withCrt:bool('with_crt'),withoutCrt:bool('without_crt'),entryCisd:bool('entry_cisd'),pullbackCisd:bool('pullback_cisd'),ifvg:bool('ifvg'),
         cisd:bool('cisd'), mss:bool('mss'),
         ob50:bool('ob50'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
