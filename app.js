@@ -338,12 +338,13 @@ const SETUP_ORDER = ['cisd24'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
-const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs'];
-function entryZone36(state){return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
+const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs','zoneTowardFvg','entryC1','entryC2','entryAfterC2','beforeFvg'];
+function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
 function poiReady36(state){
  if(!POI_KEYS36.some(k=>state[k]))return false;
  if(state.ob&&!state.smtYes)return false;
  if((state.bsl||state.ssl)&&!state.routeWithFvg&&!state.routeWithoutFvg)return false;
+ if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return !!(state.beforeFvg && (state.entryC1||state.entryC2) && !state.entryAfterC2);
  const zone=entryZone36(state);
  if((state.bsl||state.ssl)&&state.routeWithFvg&&!zone)return false;
  return !zone||!!state.returnTwoLegs;
@@ -354,8 +355,11 @@ function routeMarkup36(state){
  let html='';
  if(state.bsl||state.ssl){
  html+=`<div class="poi-route36"><strong>نحوهٔ گرفته‌شدن:</strong><div class="chips">${chip('routeWithoutFvg','بدون FVG')}${chip('routeWithFvg','با FVG')}</div>`;
- if(state.routeWithFvg)html+=`<strong>ناحیهٔ ورود بعدی:</strong><div class="chips">${chip('zoneFvg','FVG')}${chip('zoneIfvg','iFVG')}</div>`;
+ if(state.routeWithFvg)html+=`<strong>مسیر ورود:</strong><div class="chips">${chip('zoneTowardFvg','معامله تا FVG')}${chip('zoneFvg','ورود روی FVG')}${chip('zoneIfvg','ورود روی iFVG')}</div>`;
  html+='</div>';
+ }
+ if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg){
+ html+=`<div class="poi-route36 toward-fvg38"><strong>جهت مورد انتظار: ${state.bsl?'Sell':'Buy'} · مقصد: FVG</strong><strong>کندل ورود · 15m</strong><div class="chips">${chip('entryC1','C1')}${chip('entryC2','C2')}${chip('entryAfterC2','C3 و بعد')}</div><div class="chips">${chip('beforeFvg','قیمت هنوز به FVG نرسیده')}</div>${state.entryAfterC2?'<strong class="entry-expired38">مهلت ورود تمام شده</strong>':''}</div>`;
  }
  const zone=entryZone36(state);
  if(zone){
@@ -738,9 +742,13 @@ function wireChecklist(el, steps, state, after){
   if(state[key])return;
   for(const k of ROUTE_KEYS36)state[k]=false;
   state[key]=true;if(key==='routeWithFvg')state.zoneFvg=true;
- }else if(key==='zoneFvg'||key==='zoneIfvg'){
+ }else if(['zoneFvg','zoneIfvg','zoneTowardFvg'].includes(key)){
   if(!state.routeWithFvg||state[key])return;
-  state.zoneFvg=false;state.zoneIfvg=false;state[key]=true;state.returnTwoLegs=false;
+  for(const k of ['zoneFvg','zoneIfvg','zoneTowardFvg','returnTwoLegs','entryC1','entryC2','entryAfterC2','beforeFvg'])state[k]=false;state[key]=true;
+ }else if(['entryC1','entryC2','entryAfterC2','beforeFvg'].includes(key)){
+  if(!(state.bsl||state.ssl)||!state.routeWithFvg||!state.zoneTowardFvg)return;
+  if(key==='beforeFvg')state.beforeFvg=!state.beforeFvg;
+  else{if(state[key])return;state.entryC1=false;state.entryC2=false;state.entryAfterC2=false;state[key]=true;}
  }else if(key==='returnTwoLegs'){
   if(!entryZone36(state))return;state.returnTwoLegs=!state.returnTwoLegs;
  }
@@ -1783,7 +1791,7 @@ const CSV_COLS = [
   ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
   ['commission','__commission'], ['net_pl','__net'],
   ['setup','__setup'],
-  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['rjb','cl.rjb'], ['routeWithFvg','cl.routeWithFvg'], ['routeWithoutFvg','cl.routeWithoutFvg'], ['zoneFvg','cl.zoneFvg'], ['zoneIfvg','cl.zoneIfvg'], ['returnTwoLegs','cl.returnTwoLegs'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
+  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['rjb','cl.rjb'], ['routeWithFvg','cl.routeWithFvg'], ['routeWithoutFvg','cl.routeWithoutFvg'], ['zoneFvg','cl.zoneFvg'], ['zoneIfvg','cl.zoneIfvg'], ['returnTwoLegs','cl.returnTwoLegs'],['zoneTowardFvg','cl.zoneTowardFvg'],['entryC1','cl.entryC1'],['entryC2','cl.entryC2'],['entryAfterC2','cl.entryAfterC2'],['beforeFvg','cl.beforeFvg'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
   ['with_crt','cl.withCrt'], ['without_crt','cl.withoutCrt'], ['entry_cisd','cl.entryCisd'], ['pullback_cisd','cl.pullbackCisd'],
   ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
   
@@ -1861,7 +1869,7 @@ function parseCsvTrades(text){
       lotSize: Number(g('lot'))||0, grossPL: Number(g('gross_pl'))||0,
       entryReason: g('entry_reason'), exitReason: g('exit_reason'), notes: g('notes'),
       checklist: {
-        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'), bb:bool('bb'), rjb:bool('rjb'), routeWithFvg:bool('routeWithFvg'), routeWithoutFvg:bool('routeWithoutFvg'), zoneFvg:bool('zoneFvg'), zoneIfvg:bool('zoneIfvg'), returnTwoLegs:bool('returnTwoLegs'), poiIfvg:bool('poi_ifvg'), entryMss:bool('entry_mss'), blockYes23:bool('block_yes'), blockNo23:bool('block_no'), blockPull23:bool('return_ob'), cisdPull23:bool('return_bb'),
+        bsl:bool('bsl'), ssl:bool('ssl'), fvg:bool('fvg'), ob:bool('ob'), bb:bool('bb'), rjb:bool('rjb'), routeWithFvg:bool('routeWithFvg'), routeWithoutFvg:bool('routeWithoutFvg'), zoneFvg:bool('zoneFvg'), zoneIfvg:bool('zoneIfvg'), returnTwoLegs:bool('returnTwoLegs'),zoneTowardFvg:bool('zoneTowardFvg'),entryC1:bool('entryC1'),entryC2:bool('entryC2'),entryAfterC2:bool('entryAfterC2'),beforeFvg:bool('beforeFvg'), poiIfvg:bool('poi_ifvg'), entryMss:bool('entry_mss'), blockYes23:bool('block_yes'), blockNo23:bool('block_no'), blockPull23:bool('return_ob'), cisdPull23:bool('return_bb'),
         crt:bool('crt'), box:bool('box'),withCrt:bool('with_crt'),withoutCrt:bool('without_crt'),entryCisd:bool('entry_cisd'),pullbackCisd:bool('pullback_cisd'),ifvg:bool('ifvg'),
         cisd:bool('cisd'), mss:bool('mss'),
         ob50:bool('ob50'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
