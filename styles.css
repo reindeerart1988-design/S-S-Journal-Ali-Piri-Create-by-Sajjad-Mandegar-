@@ -933,3 +933,5 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 .poi-route36{border-top:1px solid var(--border,#334155);margin-top:14px;padding-top:12px;display:grid;gap:10px}.poi-route36 strong{font-size:13px;color:var(--muted,#9baabd)}.poi-route36 .chip{white-space:normal;line-height:1.8;text-align:center}
 
 #clChangeSetupBtn,#formSetupSwitch,#setupPicker{display:none!important}
+
+.toward-fvg38{border:1px solid #b88943;border-radius:12px;padding:12px;background:rgba(184,137,67,.08)}.entry-expired38{color:var(--red,#e56868)!important}
