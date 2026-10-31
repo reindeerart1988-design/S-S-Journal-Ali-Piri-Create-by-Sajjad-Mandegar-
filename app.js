@@ -147,7 +147,7 @@ async function uploadAvatar(file){
 
 // نمایش برنامه بعد از ورود موفق / پنهان‌کردن فرم ورود
 function showApp(user){
-    if(currentUser?.id!==user.id) resetSubscription();
+    if(currentUser?.id!==user.id) { resetSubscription(); window.resetBacktest?.(); }
     currentUser = user;
     hideAuthLoader();
     const modal = document.getElementById('auth-modal');
@@ -161,6 +161,7 @@ function showApp(user){
 // نمایش فرم ورود / پنهان‌کردن برنامه (کاربر لاگین نیست)
 function showAuthForm(){
     currentUser = null;
+    window.resetBacktest?.();
     resetSubscription();
     hideAuthLoader();
     const modal = document.getElementById('auth-modal');
