@@ -182,7 +182,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             } else {
                 await supabaseClient.auth.signOut();
                 showAuthForm();
-                showAuthMsg("حساب شما هنوز توسط مدیر تایید نشده است.");
+                showAuthMsg("حساب شما هنوز فعال نشده است. هزینهٔ اشتراک ماهانهٔ این ژورنال ۴۰۰ هزار تومان است. در صورت تمایل به استفاده، برای فعال‌سازی اشتراک به آیدی @sajjadmandegar در تلگرام پیام دهید.");
             }
         } else {
             showAuthForm();
@@ -239,7 +239,7 @@ async function handleSignUp() {
         options: { data: { full_name: name } }
     });
     if (error) showAuthMsg("خطا در ثبت‌نام: " + error.message);
-    else showAuthMsg("ثبت‌نام موفقیت‌آمیز بود! اکنون می‌توانید وارد شوید.");
+    else { showAuthMsg("ثبت‌نام شما ثبت شد. هزینهٔ اشتراک ماهانهٔ این ژورنال ۴۰۰ هزار تومان است. در صورت تمایل به استفاده، برای فعال‌سازی اشتراک به آیدی @sajjadmandegar در تلگرام پیام دهید."); showSubscriptionOffer(); }
 }
 
 // تابع ورود به حساب
@@ -257,7 +257,7 @@ async function handleLogin() {
 
     const approved = await isUserApproved(data.user.id);
     if (!approved) {
-        showAuthMsg("حساب شما هنوز توسط مدیر تایید نشده است. لطفاً کمی صبر کنید و دوباره امتحان کنید.");
+        showAuthMsg("حساب شما هنوز فعال نشده است. هزینهٔ اشتراک ماهانهٔ این ژورنال ۴۰۰ هزار تومان است. در صورت تمایل به استفاده، برای فعال‌سازی اشتراک به آیدی @sajjadmandegar در تلگرام پیام دهید.");
         await supabaseClient.auth.signOut();
         return;
     }

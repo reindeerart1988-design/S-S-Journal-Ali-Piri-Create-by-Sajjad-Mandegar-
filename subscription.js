@@ -1,3 +1,7 @@
+function showSubscriptionOffer(){
+ const d=document.getElementById('subscriptionOffer');if(d&&!d.open)d.showModal();
+}
+let subscriptionOfferOwner=null;
 function subscriptionTimeout(p){let timer;return Promise.race([p,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Timeout')),15000);})]).finally(()=>clearTimeout(timer));}
 /* Subscription v25. Server is authoritative; local time is only a display clock. */
 let journalSubscription=null, subscriptionEpoch=0, subCheckedAt=0, subServerAt=0, subRefresh=null;
@@ -22,13 +26,13 @@ async function refreshSubscription(){
    if(error)throw error;
    if(currentUser?.id!==owner||epoch!==subscriptionEpoch)return;
    if(!data||data.user_id!==owner||!Number.isFinite(Date.parse(data.server_now)))throw Error('Invalid status');
-   journalSubscription=data;subCheckedAt=performance.now();subServerAt=Date.parse(data.server_now);
+   journalSubscription=data;if(!data.is_admin&&!data.can_write&&subscriptionOfferOwner!==owner){subscriptionOfferOwner=owner;showSubscriptionOffer();}subCheckedAt=performance.now();subServerAt=Date.parse(data.server_now);
   }catch(e){if(currentUser?.id===owner&&epoch===subscriptionEpoch)journalSubscription=null;}
   finally{if(currentUser?.id===owner&&epoch===subscriptionEpoch)paintSubscription();}
  })();
  subRefresh={owner,promise};try{await promise;}finally{if(subRefresh?.promise===promise)subRefresh=null;}
 }
-function resetSubscription(){subscriptionEpoch++;journalSubscription=null;subRefresh=null;adminRows=[];extensionRequests.clear();for(const id of ['subscriptionDialog','subscriptionAdminDialog'])document.getElementById(id)?.close();document.getElementById('subscriptionAdminRows')?.replaceChildren();paintSubscription();}
+function resetSubscription(){subscriptionOfferOwner=null;document.getElementById('subscriptionOffer')?.close();subscriptionEpoch++;journalSubscription=null;subRefresh=null;adminRows=[];extensionRequests.clear();for(const id of ['subscriptionDialog','subscriptionAdminDialog'])document.getElementById(id)?.close();document.getElementById('subscriptionAdminRows')?.replaceChildren();paintSubscription();}
 function subscriptionDate(value){return value?new Date(value).toLocaleString('fa-IR',{timeZone:'Asia/Tehran',dateStyle:'medium',timeStyle:'short'}):'—';}
 function paintSubscription(){
  const bar=document.getElementById('subscriptionBar');if(!bar)return;
@@ -40,13 +44,13 @@ function paintSubscription(){
   if(!navigator.onLine||performance.now()-subCheckedAt>120000){text='اتصال برای بررسی اعتبار لازم است';}
   else if(d.is_admin){text='حساب مدیر';state='active';}
   else if(d.is_suspended){text='دسترسی ثبت موقتاً تعلیق شده';state='expired';}
-  else if(d.can_write&&left>0){const days=Math.ceil(left/86400000);text=`${d.trial_started_at?'اعتبار آزمایشی / اشتراک':'اشتراک فعال'} · ${days.toLocaleString('fa-IR')} روز باقی‌مانده`;state=days<=3?'warning':'active';}
+  else if(d.can_write&&left>0){const days=Math.ceil(left/86400000);text=`اشتراک فعال · ${days.toLocaleString('fa-IR')} روز باقی‌مانده`;state=days<=3?'warning':'active';}
   else{text='اعتبار تمام شده · مشاهده و خروجی فعال است';state='expired';}
  }
  document.getElementById('subscriptionStatus').textContent=text;bar.dataset.state=state;
  document.getElementById('subscriptionAdminBtn').hidden=!d?.is_admin;
  document.getElementById('subscriptionExpiry').textContent='پایان اعتبار: '+subscriptionDate(d?.expires_at)+' (تهران)';
- document.getElementById('subscriptionNotice').textContent=subscriptionWritable()?'اعتبار هر حساب فقط یک‌بار از اولین ورود موفق پس از تأیید مدیر شروع می‌شود.':'ثبت و تغییر معاملات متوقف است. اطلاعات قبلی حذف نمی‌شوند و خروجی قابل دریافت است.';
+ document.getElementById('subscriptionNotice').textContent=subscriptionWritable()?'اشتراک فعال است؛ برای تمدید با @sajjadmandegar در تلگرام هماهنگ کنید.':'ثبت و تغییر معاملات متوقف است. اطلاعات قبلی حذف نمی‌شوند و خروجی قابل دریافت است.';
 }
 const extensionRequests=new Map();let adminRows=[],adminBusy=false;
 async function loadSubscriptionAdmin(){
@@ -58,7 +62,7 @@ async function loadSubscriptionAdmin(){
 function renderSubscriptionAdmin(){
  const q=document.getElementById('subscriptionSearch').value.trim().toLowerCase();
  const rows=adminRows.filter(u=>(u.email||'').toLowerCase().includes(q)||u.id.includes(q));
- document.getElementById('subscriptionAdminRows').innerHTML=rows.map(u=>`<article class="sub-user"><strong dir="ltr">${esc(u.email||u.id)}</strong><p>${u.is_admin?'مدیر':u.is_approved?'حساب تأییدشده':'در انتظار تأیید'} · ${u.is_suspended?'تعلیق‌شده':u.expires_at?'پایان: '+esc(subscriptionDate(u.expires_at)):'دوره آزمایشی هنوز شروع نشده'}</p><div class="sub-actions"><label>روز تمدید<input type="number" min="1" max="365" value="7" data-days="${u.id}" aria-label="روز تمدید ${esc(u.email||u.id)}"></label><button type="button" class="btn" data-extend="${u.id}" ${adminBusy?'disabled':''}>افزودن اعتبار</button>${u.is_admin?'':`<button type="button" class="btn" data-approve="${u.id}" ${adminBusy?'disabled':''}>${u.is_approved?'لغو تأیید':'تأیید حساب'}</button><button type="button" class="btn" data-suspend="${u.id}" ${adminBusy?'disabled':''}>${u.is_suspended?'رفع تعلیق':'تعلیق ثبت'}</button>`}</div></article>`).join('')||'<p>کاربری پیدا نشد.</p>';
+ document.getElementById('subscriptionAdminRows').innerHTML=rows.map(u=>`<article class="sub-user"><strong dir="ltr">${esc(u.email||u.id)}</strong><p>${u.is_admin?'مدیر':u.is_approved?'حساب تأییدشده':'در انتظار تأیید'} · ${u.is_suspended?'تعلیق‌شده':u.expires_at?'پایان: '+esc(subscriptionDate(u.expires_at)):'اشتراک فعال نشده'}</p><div class="sub-actions"><label>روز تمدید<input type="number" min="1" max="365" value="30" data-days="${u.id}" aria-label="روز تمدید ${esc(u.email||u.id)}"></label><button type="button" class="btn" data-extend="${u.id}" ${adminBusy?'disabled':''}>افزودن اعتبار</button>${u.is_admin?'':`<button type="button" class="btn" data-approve="${u.id}" ${adminBusy?'disabled':''}>${u.is_approved?'لغو تأیید':'تأیید حساب'}</button><button type="button" class="btn" data-suspend="${u.id}" ${adminBusy?'disabled':''}>${u.is_suspended?'رفع تعلیق':'تعلیق ثبت'}</button>`}</div></article>`).join('')||'<p>کاربری پیدا نشد.</p>';
 }
 async function adminSubscriptionAction(e){
  const b=e.target.closest('[data-extend],[data-approve],[data-suspend]');if(!b||adminBusy)return;
