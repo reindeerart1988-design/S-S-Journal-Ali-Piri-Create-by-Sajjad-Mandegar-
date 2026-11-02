@@ -1,5 +1,5 @@
-const CACHE_NAME='ss-journal-v45';
-const APP_SHELL=['./backtest-pdf.js?v=45','./vendor/html2canvas.min.js?v=45','./vendor/jspdf.umd.min.js?v=45','./backtest.css?v=45','./backtest-core.js?v=45','./backtest.js?v=45','./','./index.html','./styles.css?v=45','./app.js?v=45','./ui-enhance.js?v=45','./ux.js?v=45','./subscription.js?v=45','./tips-private.js?v=45','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE_NAME='ss-journal-v46';
+const APP_SHELL=['./backtest-pdf.js?v=46','./vendor/html2canvas.min.js?v=46','./vendor/jspdf.umd.min.js?v=46','./backtest.css?v=46','./backtest-core.js?v=46','./backtest.js?v=46','./','./index.html','./styles.css?v=46','./app.js?v=46','./ui-enhance.js?v=46','./ux.js?v=46','./subscription.js?v=46','./tips-private.js?v=46','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('ss-journal-')&&k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{

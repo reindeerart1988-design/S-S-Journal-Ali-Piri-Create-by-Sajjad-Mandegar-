@@ -394,6 +394,15 @@ const KILLZONES = [
 const NY_TZ = 'America/New_York';
 const KZ_OPTIONS = ['NY AM','NY PM','Out of Killzone','NY Session','London'];
 const SYMBOL = 'NQ';
+function tradeSymbol(value){ return String(value||SYMBOL).trim().toUpperCase()||SYMBOL; }
+function setTradeSymbol(value){
+  const select=document.getElementById('f-symbol'),symbol=tradeSymbol(value);
+  select.querySelectorAll('[data-legacy-symbol]').forEach(el=>el.remove());
+  if(!Array.from(select.options).some(o=>o.value===symbol)){
+    const option=new Option(symbol,symbol);option.dataset.legacySymbol='1';select.add(option);
+  }
+  select.value=symbol;
+}
 
 const ICONS = { chevron:'<path d="m6 9 6 6 6-6"/>' };
 
@@ -496,7 +505,7 @@ function calcBalance(){ return (Number(settings.initialBalance)||0) + trades.red
 function migrateTrade(t){
   const m = { ...t };
   const v = Number(m.v) || 0;
-  m.symbol = SYMBOL;
+  m.symbol = tradeSymbol(m.symbol);
   if(!m.id) m.id = uid();
   if(!m.result) m.result = Number(m.rr)>0 ? 'win' : (Number(m.rr)<0 ? 'loss' : 'be');
   m.rr = Number(m.rr)||0;
@@ -853,7 +862,7 @@ function resetForm(){
   document.getElementById('segKillzone').querySelectorAll('[data-legacy]').forEach(b=>b.remove());
   document.getElementById('tradeForm').reset();
   document.getElementById('f-date').value = todayNY();
-  document.getElementById('f-symbol').value = SYMBOL;
+  setTradeSymbol(SYMBOL);
   setSeg('segTrend','bullish');
   setSeg('segDirection','buy');
   setSeg('segResult','win');
@@ -872,6 +881,7 @@ function openEditForm(t){
   document.getElementById('formTitle').textContent = 'ویرایش معامله';
   document.getElementById('submitFormBtn').textContent = 'به‌روزرسانی معامله';
   document.getElementById('f-date').value = t.date||'';
+  setTradeSymbol(t.symbol);
   setSeg('segTrend', t.trend||'bullish');
   setSeg('segDirection', t.direction||'buy');
   setSeg('segResult', t.result||'win');
@@ -923,7 +933,7 @@ document.getElementById('tradeForm').addEventListener('submit', async e=>{
   const data = {
     v: SCHEMA_VERSION,
     date: document.getElementById('f-date').value,
-    symbol: SYMBOL,
+    symbol: tradeSymbol(document.getElementById('f-symbol').value),
     trend: getSeg('segTrend') || 'bullish',
     direction: getSeg('segDirection') || 'buy',
     result, rr,
@@ -992,7 +1002,7 @@ function renderTradesList(){
       <div class="trade-row" data-id="${esc(t.id)}" role="button" tabindex="0" aria-expanded="false"
            aria-label="${esc(t.date||'')} ${t.direction==='buy'?'Buy':'Sell'} ${t.result}">
         <span class="date en">${esc(t.date||'')}</span>
-        <span class="pair"><span class="en">NQ</span>
+        <span class="pair"><span class="en">${esc(t.symbol||SYMBOL)}</span>
           <span class="badge ${t.direction==='buy'?'buy':'sell'}">${t.direction==='buy'?'BUY':'SELL'}</span>
           <span class="badge trend">${t.trend==='bearish'?'Bearish 15m':'Bullish 15m'}</span>
         </span>
@@ -1861,7 +1871,7 @@ function parseCsvTrades(text){
     return {
       id: g('id') || undefined,
       v: SCHEMA_VERSION,
-      date: g('date'), symbol: SYMBOL, entryTime:g('entry_time'), durationMinutes:g('duration_minutes')===''?null:Number(g('duration_minutes')),
+      date: g('date'), symbol: tradeSymbol(g('symbol')), entryTime:g('entry_time'), durationMinutes:g('duration_minutes')===''?null:Number(g('duration_minutes')),
       trend: g('trend')||'bullish', direction: g('direction')||'buy',
       result: g('result')||'be',
       rr: Number(g('r'))||0, idealRR: g('ideal_r')===''?null:Number(g('ideal_r')),
@@ -2066,7 +2076,7 @@ function buildMonthlyReport(y, mIdx){
   const stat = (k,v,cls)=>`<div class="s"><span>${k}</span><b class="${cls||''}">${v}</b></div>`;
 
   const html = `<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8">
-<title>NQ Journal — ${MONTHS_EN[mIdx]} ${y}</title>
+<title>S&S Journal — ${MONTHS_EN[mIdx]} ${y}</title>
 <style>
   @page{ size:A4; margin:14mm; }
   *{box-sizing:border-box;}
@@ -2093,7 +2103,7 @@ function buildMonthlyReport(y, mIdx){
 </style></head><body>
 <button class="noprint" onclick="window.print()">چاپ / ذخیره به‌صورت PDF</button>
 <div class="head">
-  <div><h1>NQ Journal — ${MONTHS_EN[mIdx]} ${y}</h1>
+  <div><h1>S&S Journal — ${MONTHS_EN[mIdx]} ${y}</h1>
   <div class="sub">S&S · NY 🗽 (SM) · ساخته‌شده در ${esc(todayNY())}</div></div>
   <div class="mono" style="font-size:22px;font-weight:700" class="${net>=0?'p':'n'}">${fmtUSD(net)}</div>
 </div>
