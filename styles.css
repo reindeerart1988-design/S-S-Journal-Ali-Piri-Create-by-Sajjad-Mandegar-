@@ -935,3 +935,14 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 #clChangeSetupBtn,#formSetupSwitch,#setupPicker{display:none!important}
 
 .toward-fvg38{border:1px solid #b88943;border-radius:12px;padding:12px;background:rgba(184,137,67,.08)}.entry-expired38{color:var(--red,#e56868)!important}
+
+/* Entry models */
+.cl-model-picker47 {padding:16px;margin-bottom:16px;border:1px solid var(--border);border-radius:12px}
+.cl-model-picker47 .chips {margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.cl-model-picker47 .chip {white-space:normal;line-height:1.8;max-width:100%}
+.model-road47 {padding:20px;border:1px solid var(--border);border-radius:16px;margin:20px 0}
+.model-road47 details {padding:14px 0;border-bottom:1px solid var(--border)}
+.model-road47 summary {cursor:pointer;font-weight:700}
+.model-road47 p {line-height:2}
+#standaloneChecklist .chip,#formChecklist .chip {white-space:normal;overflow-wrap:anywhere;max-width:100%;min-width:0;line-height:1.8}
+#standaloneChecklist .chips,#formChecklist .chips {min-width:0;flex-wrap:wrap}

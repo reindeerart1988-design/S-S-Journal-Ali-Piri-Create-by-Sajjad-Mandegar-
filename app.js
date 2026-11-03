@@ -335,7 +335,30 @@ SETUPS.cisd24={id:'cisd24',label:'چک‌لیست ورود',tag:'iFVG / CISD / M
  {n:'4',title:'بازگشت قیمت به:',tf:'1m',items:[{key:'blockPull23',label:'OB',en:true,requires:'blockYes23'},{key:'cisdPull23',label:'BB',en:true,requires:'blockNo23'}]},
  {n:'5',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
 ]};
-const SETUP_ORDER = ['cisd24'];
+const MODEL_KEYS47=['crt47','cisd47','mss47'];
+SETUPS.crt47={...SETUPS.crt23,id:'crt47',label:'مدل ۱ | CRT / BOX',steps:SETUPS.crt23.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
+SETUPS.cisd47={...SETUPS.cisd24,id:'cisd47',label:'مدل ۲ | iFVG + CISD',steps:SETUPS.cisd24.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
+SETUPS.cisd47.steps[1]={n:'2',title:'iFVG سپس CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'FVGهای مرتبط ابتدا iFVG شدند'},{key:'entryCisd',label:'CISD تأیید شد',requires:'ifvg'}]};
+SETUPS.mss47={id:'mss47',label:'مدل ۳ | MSS + FVG',tag:'MSS + FVG',steps:[
+ CURRENT_POI,
+ {n:'2',title:'همبستگی و نماد ورود',tf:'15m',multi:true,items:[{key:'correlation47',label:'رفتار NQ و ES و همبستگی / SMT بررسی شد'},{key:'sameSymbol47',label:'POI و تأیید ورود متعلق به نماد معامله است'}]},
+ {n:'3',title:'MSS با کلوز بدنه',tf:'1m',items:[{key:'mssClose47',label:'بدنه آن‌طرف سطح ساختار کلوز داد'}],note:'CISD در مدل سوم استفاده نمی‌شود؛ iFVG پیش‌شرط نیست.'},
+ {n:'4',title:'FVG در همان لگ شکست MSS',tf:'1m',items:[{key:'fvgBefore47',label:'FVG قبل از شکست MSS'},{key:'fvgAfter47',label:'FVG بعد از شکست MSS'}],note:'دیسپلیسمنت یعنی حداقل یک FVG در همان لگ؛ قبل یا بعد از MSS.'},
+ {n:'5',title:'مسیر بازگشت قیمت',tf:'1m',items:[{key:'normalReturn47',label:'بازگشت به BB / FVG / OB همان لگ'},{key:'gapReturn47',label:'به BB نرسید؛ واکنش به FVG بعد از MSS',requires:'fvgAfter47'}]},
+ {n:'6',title:'ناحیه لمس‌شده',tf:'1m',type:'entryZone47',items:[]},
+ {n:'7',title:'شکست Propulsion Block',tf:'1m',items:[{key:'pbWick47',label:'کلوز بدنه آن‌طرف شدوی بلاک / سوئینگ مرجع'}],note:'Buy: بالای شدوی بلاک قرمز / سقف سوئینگ؛ Sell: پایین شدوی بلاک سبز / کف سوئینگ. شدوی بلند کندل قبلی در سوئینگ سه‌کندلی نیز ملاک است؛ شکست بدنهٔ بلاک به‌تنهایی کافی نیست.'},
+ {n:'8',title:'محل استاپ',tf:'1m',type:'stop47',items:[]}
+]};
+function modelSteps47(id,state){
+ const steps=getSetup(id).steps;
+ if(id!=='mss47')return steps;
+ return steps.map(step=>{
+ if(step.type==='entryZone47')return {...step,type:null,items:state.gapReturn47?[25,50,75].map(n=>({key:'gap'+n+'47',label:n+'٪ آخرین FVG لمس شد'})):[{key:'returnBB47',label:'BB'},{key:'returnFVG47',label:'FVG'},{key:'returnOB47',label:'OB'}],note:state.gapReturn47?'فقط آخرین FVG؛ لمس یکی از سطوح ۲۵، ۵۰ یا ۷۵ درصد و سپس شکست PB.':'بازگشت به ناحیه در همان لگ MSS؛ هم‌پوشانی BB و FVG حالت Unicorn است.'};
+ if(step.type==='stop47')return {...step,type:null,items:state.gapReturn47?[{key:'stopFvg47',label:'استاپ پشت آخرین FVG قرار گرفت'}]:[{key:'stopSwing47',label:'استاپ پشت سوئینگ مرجع قرار گرفت'}],note:state.gapReturn47?'در این مسیر، استاپ پشت سوئینگ PB نیست؛ پشت FVG است.':''};
+ return step;
+ });
+}
+const SETUP_ORDER = MODEL_KEYS47;
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
@@ -343,6 +366,7 @@ const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','retur
 function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
 function poiReady36(state){
  if(!POI_KEYS36.some(k=>state[k]))return false;
+ if(state._model47==='crt47')return true;
  if(state.ob&&!state.smtYes)return false;
  if((state.bsl||state.ssl)&&!state.routeWithFvg&&!state.routeWithoutFvg)return false;
  if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return !!(state.beforeFvg && (state.entryC1||state.entryC2) && !state.entryAfterC2);
@@ -371,9 +395,13 @@ function routeMarkup36(state){
 }
 function stepDone(step, state){
   state = state || {};
-  if(step===CURRENT_POI)return poiReady36(state);
+  if(Number(step.n)===1)return poiReady36(state);
   if(Number(step.n)>=2 && !poiReady36(state))return false;
-  if(step.type==='model') return true;
+  if(MODEL_KEYS47.includes(state._model47)){
+ const previous=modelSteps47(state._model47,state).filter(x=>Number(x.n)<Number(step.n));
+ if(previous.some(x=>!stepDone(x,state)))return false;
+ }
+ if(step.type==='model') return true;
   if(step.skipIfKey && state[step.skipIfKey]) return true;
   if(step.type==='conditional'){
     if(!state[step.followKey]) return true; /* no follow-through => this step isn't required */
@@ -382,6 +410,9 @@ function stepDone(step, state){
   if(step.anyOf) return !!state[step.requiredKey] && step.anyOf.some(key=>!!state[key]);
   if(step.multi) return step.items.every(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
   return step.items.some(it=>!!state[it.key] && (!it.requires || !!state[it.requires]));
+}
+function blocked47(step,steps,state){
+ return MODEL_KEYS47.includes(state._model47) && steps.some(x=>Number(x.n)<Number(step.n)&&!stepDone(x,state));
 }
 function stepsDoneCount(steps, state){ return steps.filter(s=>stepDone(s,state)).length; }
 
@@ -523,6 +554,7 @@ function migrateTrade(t){
   if(m.setupId && !SETUPS[m.setupId]) m.legacySetupId=m.legacySetupId||m.setupId;
   if(!m.setupId || !SETUPS[m.setupId]) m.setupId = 'standard';
   const c = m.checklist || {};
+  if(MODEL_KEYS47.includes(m.setupId))c._model47=m.setupId;
   m.checklist = {
     ...c, smtYes:!!c.smtYes || (!c.smtNo && !!c.smtSweep), smtNo:!!c.smtNo && !c.smtYes, withCrt:!c.withoutCrt && !!(c.withCrt || c.crt || c.box || c.crt_box), withoutCrt:!!c.withoutCrt,
     entryCisd:!!(c.ifvg && c.entryCisd), entryMss:!!(c.ifvg && c.entryMss && !c.entryCisd), bb:!!c.bb, poiIfvg:!!c.poiIfvg, pullbackCisd:!!c.pullbackCisd,
@@ -690,7 +722,9 @@ function renderChecklistBlocks(steps, state, ns){
 
   state = state || {};
   ns = ns || 'default';
-  return smtInfo + steps.map(step=>{
+  const selected=ns.split(':').pop();
+  const picker='<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(selected===id?'on':'')+'" aria-pressed="'+(selected===id)+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>';
+  return picker + (selected==='crt47'?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
     let head, body, skipped = false;
     if(step.type==='model'){
       head = `<div class="cl-head"><span class="cl-n en">2</span><span class="cl-t">CRT / BOX <i class="en">15m</i></span></div>`;
@@ -723,23 +757,23 @@ function renderChecklistBlocks(steps, state, ns){
         </div>`;
       body = `
         <div class="chips">
-          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(Number(step.n)>=2&&!poiReady36(state))?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
+          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(Number(step.n)>=2&&!poiReady36(state))||blocked47(step,steps,state)?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
         </div>`;
     }
-    if(step===CURRENT_POI)body+=routeMarkup36(state);
+    if(Number(step.n)===1 && selected!=='crt47')body+=routeMarkup36(state);
     let note = '';
     if(step.note) note += `<div class="cl-note">${step.note}</div>`;
     if(step.condNotes){
       step.condNotes.forEach(cn=>{ if(state[cn.when]) note += `<div class="cl-note">${cn.text}</div>`; });
     }
     const rowClass = skipped ? 'skipped' : (stepDone(step,state) ? 'done' : '');
-    return `<div class="cl-row ${rowClass}">${head}${body}</div>`;
+    return `<div class="cl-row ${rowClass}">${head}${body}${note}</div>`;
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
  el.querySelectorAll('[data-entry-model]').forEach(btn=>btn.addEventListener('click',()=>{
    const id=btn.dataset.entryModel;
-   const common={}; for(const k of [...POI_KEYS36,...ROUTE_KEYS36,'smtYes','smtNo']) if(state[k]) common[k]=true;
+   const common={_model47:id};
    if(el.id==='formChecklist') {if(formSetupId===id)return; formSetupId=id; formChecklistState=common;}
    else {if(currentSetupId===id)return; currentSetupId=id; standaloneChecklistState[id]=common;}
    after();
@@ -767,6 +801,7 @@ function wireChecklist(el, steps, state, after){
   el.querySelectorAll('.chip[data-key]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const key = chip.dataset.key;
+      const activeStep=steps.find(x=>x.n===chip.dataset.group);if(blocked47(activeStep,steps,state))return;
       if(Number(chip.dataset.group)>=2&&!poiReady36(state))return;
       const isOn = !!state[key];
       if(chip.dataset.multi!=='1'){
@@ -777,6 +812,10 @@ function wireChecklist(el, steps, state, after){
       if(item?.requires && !state[item.requires]) return;
       if(item?.exclusive && !isOn){for(const it of steps.flatMap(s=>s.items||[])){if(it.exclusive===item.exclusive)state[it.key]=false;}}
       state[key] = !isOn;
+      if(MODEL_KEYS47.includes(state._model47)){
+        for(const next of steps.filter(x=>Number(x.n)>Number(chip.dataset.group)))for(const it of next.items||[])state[it.key]=false;
+        if(['fvgBefore47','fvgAfter47','normalReturn47','gapReturn47'].includes(key))for(const k of ['gap2547','gap5047','gap7547','returnBB47','returnOB47','returnFVG47','stopFvg47','stopSwing47','pbWick47'])state[k]=false;
+      }
       if(POI_KEYS36.includes(key)){for(const k of ROUTE_KEYS36)state[k]=false;state.bb=false;resetEntry36(state,steps);}
       if(key==='ifvg' && !state.ifvg){state.entryCisd=false;state.entryMss=false;}
       if(key==='propulsionSwing' && !state.propulsionSwing) state.propulsionClose=false;
@@ -811,16 +850,17 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'cisd24';
+let formSetupId = 'cisd47';
 function renderFormSetupSwitch(){document.getElementById('formSetupSwitch')?.replaceChildren();}
 function renderFormChecklist(){
   document.getElementById('formSetupSwitch')?.replaceChildren();
   const el = document.getElementById('formChecklist');
-  const steps = getSetup(formSetupId).steps;
+  formChecklistState._model47=formSetupId;
+  const steps = modelSteps47(formSetupId,formChecklistState);
   el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
   wireChecklist(el, steps, formChecklistState, renderFormChecklist);
 }
-function buildFormChecklist(setupId, checked){ formSetupId = 'cisd24'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
+function buildFormChecklist(setupId, checked){ formSetupId = SETUPS[setupId]?setupId:'cisd47'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
 
 function applyResultUI(){
   const res = getSeg('segResult');
@@ -869,7 +909,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('cisd24');
+  buildFormChecklist('cisd47');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -1053,7 +1093,7 @@ function renderTradeDetail(inner, id){
       <div class="detail-meta-item"><div class="k en">COMMISSION</div><div class="v en">${fmtUSD(commission)}</div></div>
       <div class="detail-meta-item"><div class="k en">NET</div><div class="v en" style="color:${net>=0?'var(--blue)':'var(--red)'}">${fmtUSD(net)}</div></div>
     </div>
-    <div class="detail-cl"><span class="cl-setup-badge" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${getSetup(t.setupId).steps.map(step=>{
+    <div class="detail-cl"><span class="cl-setup-badge" style="background:${getSetup(t.setupId).accent==='amber'?'#d99a1e':(getSetup(t.setupId).accent==='red'?'var(--red)':'var(--blue)')}">${getSetup(t.setupId).label}</span>${modelSteps47(t.setupId,t.checklist||{}).map(step=>{
       if(step.type==='conditional'){
         const done = stepDone(step,t.checklist||{});
         const ft = t.checklist && t.checklist[step.followKey];
@@ -1672,14 +1712,15 @@ function renderCalendar(){
 /* ============================================================
    STANDALONE CHECKLIST
 ============================================================ */
-let currentSetupId = 'cisd24';
+let currentSetupId = 'cisd47';
 function renderSetupPicker(){document.getElementById('setupPicker')?.replaceChildren();}
 function renderStandaloneChecklist(){
   document.getElementById('setupPicker')?.replaceChildren();
   const body = document.getElementById('checklistBody');
   if(!currentSetupId){ body.classList.add('hidden'); return; }
   body.classList.remove('hidden');
-  const setup = SETUPS[currentSetupId];
+  const state47=standaloneChecklistState[currentSetupId]||(standaloneChecklistState[currentSetupId]={});state47._model47=currentSetupId;
+  const setup = {...SETUPS[currentSetupId],steps:modelSteps47(currentSetupId,state47)};
   const state = standaloneChecklistState[currentSetupId] || (standaloneChecklistState[currentSetupId]={});
   document.getElementById('clSetupTitle').textContent = setup.label;
   const el = document.getElementById('standaloneChecklist');
@@ -1689,7 +1730,7 @@ function renderStandaloneChecklist(){
   document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
   document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='cisd24'; renderStandaloneChecklist(); });
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='cisd47'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
   if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
@@ -1802,7 +1843,7 @@ const CSV_COLS = [
   ['killzone','killzone'], ['lot','lotSize'], ['gross_pl','grossPL'],
   ['commission','__commission'], ['net_pl','__net'],
   ['setup','__setup'],
-  ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['rjb','cl.rjb'], ['routeWithFvg','cl.routeWithFvg'], ['routeWithoutFvg','cl.routeWithoutFvg'], ['zoneFvg','cl.zoneFvg'], ['zoneIfvg','cl.zoneIfvg'], ['returnTwoLegs','cl.returnTwoLegs'],['zoneTowardFvg','cl.zoneTowardFvg'],['entryC1','cl.entryC1'],['entryC2','cl.entryC2'],['entryAfterC2','cl.entryAfterC2'],['beforeFvg','cl.beforeFvg'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
+  ['checklist_json','__cljson'], ['checklist_done','__cl'], ['bsl','cl.bsl'], ['ssl','cl.ssl'], ['fvg','cl.fvg'], ['ob','cl.ob'], ['bb','cl.bb'], ['rjb','cl.rjb'], ['routeWithFvg','cl.routeWithFvg'], ['routeWithoutFvg','cl.routeWithoutFvg'], ['zoneFvg','cl.zoneFvg'], ['zoneIfvg','cl.zoneIfvg'], ['returnTwoLegs','cl.returnTwoLegs'],['zoneTowardFvg','cl.zoneTowardFvg'],['entryC1','cl.entryC1'],['entryC2','cl.entryC2'],['entryAfterC2','cl.entryAfterC2'],['beforeFvg','cl.beforeFvg'], ['poi_ifvg','cl.poiIfvg'], ['entry_mss','cl.entryMss'], ['block_yes','cl.blockYes23'], ['block_no','cl.blockNo23'], ['return_ob','cl.blockPull23'], ['return_bb','cl.cisdPull23'],
   ['with_crt','cl.withCrt'], ['without_crt','cl.withoutCrt'], ['entry_cisd','cl.entryCisd'], ['pullback_cisd','cl.pullbackCisd'],
   ['cisd','cl.cisd'], ['mss','cl.mss'], ['ob50','cl.ob50'],
   
@@ -1820,9 +1861,10 @@ function csvCell(v){
 function tradeToCsvRow(t){
   const cl = t.checklist || {};
   return CSV_COLS.map(([,key])=>{
+    if(key==='__cljson')return JSON.stringify(cl);
     if(key==='__commission') return calcCommission(t).toFixed(2);
     if(key==='__net') return calcNet(t).toFixed(2);
-    if(key==='__cl'){ const st=getSetup(t.setupId); return stepsDoneCount(st.steps,cl)+'/'+st.steps.length; }
+    if(key==='__cl'){ const steps=modelSteps47(t.setupId,cl); return stepsDoneCount(steps,cl)+'/'+steps.length; }
     if(key==='__setup') return getSetup(t.setupId).label;
     if(key==='__l15') return (t.links&&t.links['15'])||'';
     if(key==='__l1') return (t.links&&t.links['1'])||'';
@@ -1884,7 +1926,8 @@ function parseCsvTrades(text){
         crt:bool('crt'), box:bool('box'),withCrt:bool('with_crt'),withoutCrt:bool('without_crt'),entryCisd:bool('entry_cisd'),pullbackCisd:bool('pullback_cisd'),ifvg:bool('ifvg'),
         cisd:bool('cisd'), mss:bool('mss'),
         ob50:bool('ob50'), followThrough:bool('follow_through'), sr:bool('stop_raid'),
-        breakob:bool('break_ob')
+        breakob:bool('break_ob'),
+        ...(()=>{try{const c=JSON.parse(g('checklist_json')||'{}');return c&&typeof c==='object'&&!Array.isArray(c)?c:{};}catch{return {};}})()
       },
       links: { '15': g('chart_15m'), '1': g('chart_1m') },
       createdAt: Number(g('created_at')) || 0
