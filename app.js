@@ -386,12 +386,13 @@ const SETUP_ORDER = ['crt48','cisd48','mss48'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
-const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs','zoneTowardFvg','entryC1','entryC2','entryAfterC2','beforeFvg'];
-function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
+const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs','zoneTowardFvg','zoneEsReversal','esWithoutFvg','entryC1','entryC2','entryAfterC2','beforeFvg'];
+function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&(state.zoneTowardFvg||state.zoneEsReversal))return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
 function poiReady36(state){
  if(!POI_KEYS36.some(k=>state[k]))return false;
  if(['crt47','crt48'].includes(state._model47))return true;
  if(state.ob&&!state.smtYes)return false;
+ if(state._model47==='mss48'&&(state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneEsReversal)return !!(state.esWithoutFvg||state.smtYes);
  if((state.bsl||state.ssl)&&!state.routeWithFvg&&!state.routeWithoutFvg)return false;
  if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return !!(state.beforeFvg && (state.entryC1||state.entryC2) && !state.entryAfterC2);
  const zone=entryZone36(state);
@@ -404,11 +405,14 @@ function routeMarkup36(state){
  let html='';
  if(state.bsl||state.ssl){
  html+=`<div class="poi-route36"><strong>نحوهٔ گرفته‌شدن:</strong><div class="chips">${chip('routeWithoutFvg','بدون FVG')}${chip('routeWithFvg','با FVG')}</div>`;
- if(state.routeWithFvg)html+=`<strong>مسیر ورود:</strong><div class="chips">${chip('zoneTowardFvg','معامله تا FVG')}${chip('zoneFvg','ورود روی FVG')}${compact48(state)?'':chip('zoneIfvg','ورود روی iFVG')}</div>`;
+ if(state.routeWithFvg)html+=`<strong>مسیر ورود:</strong><div class="chips">${chip('zoneTowardFvg','معامله تا FVG')}${chip('zoneFvg','ورود روی FVG')}${state._model47==='mss48'?chip('zoneEsReversal','خلاف جهت با تأیید ES / SMT'):''}${compact48(state)?'':chip('zoneIfvg','ورود روی iFVG')}</div>`;
  html+='</div>';
  }
  if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg){
  html+=`<div class="poi-route36 toward-fvg38"><strong>جهت مورد انتظار: ${state.bsl?'Sell':'Buy'} · مقصد: FVG</strong><strong>کندل ورود · 15m</strong><div class="chips">${chip('entryC1','C1')}${chip('entryC2','C2')}${chip('entryAfterC2','C3 و بعد')}</div><div class="chips">${chip('beforeFvg','قیمت هنوز به FVG نرسیده')}</div>${state.entryAfterC2?'<strong class="entry-expired38">مهلت ورود تمام شده</strong>':''}</div>`;
+ }
+ if(state._model47==='mss48'&&(state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneEsReversal){
+ html+=`<div class="poi-route36"><strong>FVG نزدک ملاک ورود نیست · جهت: ${state.bsl?'Sell':'Buy'}</strong><div class="chips">${chip('esWithoutFvg','ES سطح متناظر را بدون FVG گرفته')}${state.smtYes?'<span class="chip on">SMT با ES انتخاب شده</span>':''}</div></div>`;
  }
  const zone=entryZone36(state);
  if(zone&&!compact48(state)){
@@ -748,7 +752,7 @@ function renderChecklistBlocks(steps, state, ns){
   ns = ns || 'default';
   const selected=ns.split(':').pop();
   const picker='<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(selected===id?'on':'')+'" aria-pressed="'+(selected===id)+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>';
-  return picker + (selected==='mss48'?(state.ob?smtInfo:''):['crt47','crt48'].includes(selected)?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
+  return picker + (['crt47','crt48'].includes(selected)?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
     let head, body, skipped = false;
     if(step.type==='model'){
       head = `<div class="cl-head"><span class="cl-n en">2</span><span class="cl-t">CRT / BOX <i class="en">15m</i></span></div>`;
@@ -803,20 +807,22 @@ function wireChecklist(el, steps, state, after){
    after();
  }));
 
- el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';if(state.ob&&!state.smtYes)resetEntry36(state,steps);after();}));
+ el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';if((state.ob||state.zoneEsReversal)&&!state.smtYes)resetEntry36(state,steps);after();}));
  el.querySelectorAll('[data-route36]').forEach(btn=>btn.addEventListener('click',()=>{
  const key=btn.dataset.route36;
  if(key==='routeWithFvg'||key==='routeWithoutFvg'){
   if(state[key])return;
   for(const k of ROUTE_KEYS36)state[k]=false;
   state[key]=true;if(key==='routeWithFvg')state.zoneFvg=true;
- }else if(['zoneFvg','zoneIfvg','zoneTowardFvg'].includes(key)){
+ }else if(['zoneFvg','zoneIfvg','zoneTowardFvg','zoneEsReversal'].includes(key)){
   if(!state.routeWithFvg||state[key])return;
-  for(const k of ['zoneFvg','zoneIfvg','zoneTowardFvg','returnTwoLegs','entryC1','entryC2','entryAfterC2','beforeFvg'])state[k]=false;state[key]=true;
+  for(const k of ['zoneFvg','zoneIfvg','zoneTowardFvg','zoneEsReversal','esWithoutFvg','returnTwoLegs','entryC1','entryC2','entryAfterC2','beforeFvg'])state[k]=false;state[key]=true;
  }else if(['entryC1','entryC2','entryAfterC2','beforeFvg'].includes(key)){
   if(!(state.bsl||state.ssl)||!state.routeWithFvg||!state.zoneTowardFvg)return;
   if(key==='beforeFvg')state.beforeFvg=!state.beforeFvg;
   else{if(state[key])return;state.entryC1=false;state.entryC2=false;state.entryAfterC2=false;state[key]=true;}
+ }else if(key==='esWithoutFvg'){
+  if(state._model47!=='mss48'||!state.zoneEsReversal)return;state.esWithoutFvg=!state.esWithoutFvg;
  }else if(key==='returnTwoLegs'){
   if(!entryZone36(state))return;state.returnTwoLegs=!state.returnTwoLegs;
  }
