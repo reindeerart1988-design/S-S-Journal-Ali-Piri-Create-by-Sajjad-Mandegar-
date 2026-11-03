@@ -335,7 +335,7 @@ SETUPS.cisd24={id:'cisd24',label:'چک‌لیست ورود',tag:'iFVG / CISD / M
  {n:'4',title:'بازگشت قیمت به:',tf:'1m',items:[{key:'blockPull23',label:'OB',en:true,requires:'blockYes23'},{key:'cisdPull23',label:'BB',en:true,requires:'blockNo23'}]},
  {n:'5',title:'شکستن Propulsion Block',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
 ]};
-const MODEL_KEYS47=['crt47','cisd47','mss47'];
+const MODEL_KEYS47=['crt47','cisd47','mss47','crt48','cisd48','mss48'];
 SETUPS.crt47={...SETUPS.crt23,id:'crt47',label:'مدل ۱ | CRT / BOX',steps:SETUPS.crt23.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
 SETUPS.cisd47={...SETUPS.cisd24,id:'cisd47',label:'مدل ۲ | iFVG + CISD',steps:SETUPS.cisd24.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
 SETUPS.cisd47.steps[1]={n:'2',title:'iFVG سپس CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'FVGهای مرتبط ابتدا iFVG شدند'},{key:'entryCisd',label:'CISD تأیید شد',requires:'ifvg'}]};
@@ -349,8 +349,32 @@ SETUPS.mss47={id:'mss47',label:'مدل ۳ | MSS + FVG',tag:'MSS + FVG',steps:[
  {n:'7',title:'شکست Propulsion Block',tf:'1m',items:[{key:'pbWick47',label:'کلوز بدنه آن‌طرف شدوی بلاک / سوئینگ مرجع'}],note:'Buy: بالای شدوی بلاک قرمز / سقف سوئینگ؛ Sell: پایین شدوی بلاک سبز / کف سوئینگ. شدوی بلند کندل قبلی در سوئینگ سه‌کندلی نیز ملاک است؛ شکست بدنهٔ بلاک به‌تنهایی کافی نیست.'},
  {n:'8',title:'محل استاپ',tf:'1m',type:'stop47',items:[]}
 ]};
+
+const compactStep48=x=>({...x,note:'',items:x.items.map(i=>({...i}))});
+SETUPS.crt48={...SETUPS.crt47,id:'crt48',steps:[
+ {...STEP_POI,items:STEP_POI.items.map(i=>({...i}))},
+ ...SETUPS.crt47.steps.filter(x=>['3','4','5','6','7'].includes(x.n)).map(compactStep48),
+ {title:'شکست PB',tf:'1m',items:[{key:'propulsionClose',label:'✓'}]}
+].map((x,i)=>({...x,n:String(i+1)}))};
+SETUPS.cisd48={...SETUPS.cisd47,id:'cisd48',steps:SETUPS.cisd47.steps.map(compactStep48)};
+SETUPS.mss48={...SETUPS.mss47,id:'mss48',steps:[
+ {n:'1',title:'همبستگی',tf:'15m',items:[{key:'correlation47',label:'رفتار NQ و ES همبستگی دارد'}]},
+ {...CURRENT_POI,n:'2'},
+ {n:'3',title:'MSS با کلوز بدنه',tf:'1m',items:[{key:'mssClose47',label:'✓'}]},
+ {n:'4',title:'FVG در لگ MSS',tf:'1m',items:[{key:'fvgBefore47',label:'قبل از شکست MSS'},{key:'fvgAfter47',label:'بعد از شکست MSS'}]},
+ {n:'5',title:'بازگشت قیمت',tf:'1m',items:[]},
+ {n:'6',title:'شکست PB',tf:'1m',items:[{key:'pbWick47',label:'با کلوز بدنه، شدوی بلاک شکسته شد'}]}
+]};
+function compact48(state){return ['crt48','cisd48','mss48'].includes(state._model47);}
+function poiStep48(step){return step.items.some(i=>POI_KEYS36.includes(i.key));}
+function poiGate48(step,state){return state._model47==='mss48'?Number(step.n)>2:Number(step.n)>=2;}
 function modelSteps47(id,state){
  const steps=getSetup(id).steps;
+ if(id==='mss48')return steps.map(step=>{
+ if(step.n==='5')return {...step,items:[{key:'return48',label:state.fvgAfter47?'قیمت به ۲۵٪، ۵۰٪ یا ۷۵٪ آخرین FVG رسید':'قیمت به BB، OB یا FVG رسید'}]};
+ if(step.n==='6')return {...step,title:state.fvgAfter47?'شکست PB · استاپ پشت کندل FVG':'شکست PB'};
+ return step;
+ });
  if(id!=='mss47')return steps;
  return steps.map(step=>{
  if(step.type==='entryZone47')return {...step,type:null,items:state.gapReturn47?[25,50,75].map(n=>({key:'gap'+n+'47',label:n+'٪ آخرین FVG لمس شد'})):[{key:'returnBB47',label:'BB'},{key:'returnFVG47',label:'FVG'},{key:'returnOB47',label:'OB'}],note:state.gapReturn47?'فقط آخرین FVG؛ لمس یکی از سطوح ۲۵، ۵۰ یا ۷۵ درصد و سپس شکست PB.':'بازگشت به ناحیه در همان لگ MSS؛ هم‌پوشانی BB و FVG حالت Unicorn است.'};
@@ -358,7 +382,7 @@ function modelSteps47(id,state){
  return step;
  });
 }
-const SETUP_ORDER = MODEL_KEYS47;
+const SETUP_ORDER = ['crt48','cisd48','mss48'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
@@ -366,28 +390,28 @@ const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','retur
 function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
 function poiReady36(state){
  if(!POI_KEYS36.some(k=>state[k]))return false;
- if(state._model47==='crt47')return true;
+ if(['crt47','crt48'].includes(state._model47))return true;
  if(state.ob&&!state.smtYes)return false;
  if((state.bsl||state.ssl)&&!state.routeWithFvg&&!state.routeWithoutFvg)return false;
  if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return !!(state.beforeFvg && (state.entryC1||state.entryC2) && !state.entryAfterC2);
  const zone=entryZone36(state);
  if((state.bsl||state.ssl)&&state.routeWithFvg&&!zone)return false;
- return !zone||!!state.returnTwoLegs;
+ return compact48(state)||!zone||!!state.returnTwoLegs;
 }
-function resetEntry36(state,steps){for(const it of steps.filter(x=>Number(x.n)>=2).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
+function resetEntry36(state,steps){for(const it of steps.filter(x=>Number(x.n)>(state._model47==='mss48'?2:1)).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
 function routeMarkup36(state){
  const chip=(key,label)=>`<button type="button" class="chip ${state[key]?'on':''}" data-route36="${key}" aria-pressed="${!!state[key]}">${label}</button>`;
  let html='';
  if(state.bsl||state.ssl){
  html+=`<div class="poi-route36"><strong>نحوهٔ گرفته‌شدن:</strong><div class="chips">${chip('routeWithoutFvg','بدون FVG')}${chip('routeWithFvg','با FVG')}</div>`;
- if(state.routeWithFvg)html+=`<strong>مسیر ورود:</strong><div class="chips">${chip('zoneTowardFvg','معامله تا FVG')}${chip('zoneFvg','ورود روی FVG')}${chip('zoneIfvg','ورود روی iFVG')}</div>`;
+ if(state.routeWithFvg)html+=`<strong>مسیر ورود:</strong><div class="chips">${chip('zoneTowardFvg','معامله تا FVG')}${chip('zoneFvg','ورود روی FVG')}${compact48(state)?'':chip('zoneIfvg','ورود روی iFVG')}</div>`;
  html+='</div>';
  }
  if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg){
  html+=`<div class="poi-route36 toward-fvg38"><strong>جهت مورد انتظار: ${state.bsl?'Sell':'Buy'} · مقصد: FVG</strong><strong>کندل ورود · 15m</strong><div class="chips">${chip('entryC1','C1')}${chip('entryC2','C2')}${chip('entryAfterC2','C3 و بعد')}</div><div class="chips">${chip('beforeFvg','قیمت هنوز به FVG نرسیده')}</div>${state.entryAfterC2?'<strong class="entry-expired38">مهلت ورود تمام شده</strong>':''}</div>`;
  }
  const zone=entryZone36(state);
- if(zone){
+ if(zone&&!compact48(state)){
  const expected=zone==='fvg'&&state.routeWithFvg?(state.bsl?'Buy':state.ssl?'Sell':''):'';
  html+=`<div class="poi-route36"><strong>شرط ضروری · 1m${expected?' · جهت مورد انتظار: '+expected:''}</strong><div class="chips">${chip('returnTwoLegs','بازگشت به '+(zone==='ifvg'?'iFVG':'FVG')+' با حداقل دو لگ در ۱ دقیقه')}</div></div>`;
  }
@@ -395,8 +419,8 @@ function routeMarkup36(state){
 }
 function stepDone(step, state){
   state = state || {};
-  if(Number(step.n)===1)return poiReady36(state);
-  if(Number(step.n)>=2 && !poiReady36(state))return false;
+  if(poiStep48(step)){if(state._model47==='mss48'&&!state.correlation47)return false;return poiReady36(state);}
+  if(poiGate48(step,state) && !poiReady36(state))return false;
   if(MODEL_KEYS47.includes(state._model47)){
  const previous=modelSteps47(state._model47,state).filter(x=>Number(x.n)<Number(step.n));
  if(previous.some(x=>!stepDone(x,state)))return false;
@@ -724,7 +748,7 @@ function renderChecklistBlocks(steps, state, ns){
   ns = ns || 'default';
   const selected=ns.split(':').pop();
   const picker='<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(selected===id?'on':'')+'" aria-pressed="'+(selected===id)+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>';
-  return picker + (selected==='crt47'?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
+  return picker + (selected==='mss48'?(state.ob?smtInfo:''):['crt47','crt48'].includes(selected)?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
     let head, body, skipped = false;
     if(step.type==='model'){
       head = `<div class="cl-head"><span class="cl-n en">2</span><span class="cl-t">CRT / BOX <i class="en">15m</i></span></div>`;
@@ -757,10 +781,10 @@ function renderChecklistBlocks(steps, state, ns){
         </div>`;
       body = `
         <div class="chips">
-          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(Number(step.n)>=2&&!poiReady36(state))||blocked47(step,steps,state)?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
+          ${step.items.map(it=>`<button type="button" class="chip ${it.en?'en':''} ${state[it.key]?'on':''}" aria-pressed="${!!state[it.key]}" ${(it.requires&&!state[it.requires])||(poiGate48(step,state)&&!poiReady36(state))||blocked47(step,steps,state)?'disabled':''} data-key="${it.key}" data-group="${step.n}" data-multi="${step.multi?1:0}">${it.label}</button>`).join('')}
         </div>`;
     }
-    if(Number(step.n)===1 && selected!=='crt47')body+=routeMarkup36(state);
+    if(poiStep48(step) && !['crt47','crt48'].includes(selected))body+=routeMarkup36(state);
     let note = '';
     if(step.note) note += `<div class="cl-note">${step.note}</div>`;
     if(step.condNotes){
@@ -802,7 +826,7 @@ function wireChecklist(el, steps, state, after){
     chip.addEventListener('click', ()=>{
       const key = chip.dataset.key;
       const activeStep=steps.find(x=>x.n===chip.dataset.group);if(blocked47(activeStep,steps,state))return;
-      if(Number(chip.dataset.group)>=2&&!poiReady36(state))return;
+      if(poiGate48(activeStep,state)&&!poiReady36(state))return;
       const isOn = !!state[key];
       if(chip.dataset.multi!=='1'){
         const step = steps.find(s=>s.n===chip.dataset.group);
@@ -850,7 +874,7 @@ function wireChecklist(el, steps, state, after){
 /* ============================================================
    TRADE FORM
 ============================================================ */
-let formSetupId = 'cisd47';
+let formSetupId = 'cisd48';
 function renderFormSetupSwitch(){document.getElementById('formSetupSwitch')?.replaceChildren();}
 function renderFormChecklist(){
   document.getElementById('formSetupSwitch')?.replaceChildren();
@@ -860,7 +884,7 @@ function renderFormChecklist(){
   el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
   wireChecklist(el, steps, formChecklistState, renderFormChecklist);
 }
-function buildFormChecklist(setupId, checked){ formSetupId = SETUPS[setupId]?setupId:'cisd47'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
+function buildFormChecklist(setupId, checked){ formSetupId = SETUPS[setupId]?setupId:'cisd48'; formChecklistState = { ...(checked||{}) }; renderFormChecklist(); }
 
 function applyResultUI(){
   const res = getSeg('segResult');
@@ -909,7 +933,7 @@ function resetForm(){
   setSeg('segKillzone', currentKillzone());
   setSeg('segCouldBe','no');
   applyResultUI();
-  buildFormChecklist('cisd47');
+  buildFormChecklist('cisd48');
   updateFormCalcLine();
   editingTradeId = null;
   document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
@@ -1712,7 +1736,7 @@ function renderCalendar(){
 /* ============================================================
    STANDALONE CHECKLIST
 ============================================================ */
-let currentSetupId = 'cisd47';
+let currentSetupId = 'cisd48';
 function renderSetupPicker(){document.getElementById('setupPicker')?.replaceChildren();}
 function renderStandaloneChecklist(){
   document.getElementById('setupPicker')?.replaceChildren();
@@ -1730,7 +1754,7 @@ function renderStandaloneChecklist(){
   document.getElementById('clProgressText').textContent = `${done} از ${setup.steps.length} مرحله`;
   document.getElementById('clProgressFill').style.width = (done/setup.steps.length*100)+'%';
 }
-document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='cisd47'; renderStandaloneChecklist(); });
+document.getElementById('clChangeSetupBtn').addEventListener('click', ()=>{ currentSetupId='cisd48'; renderStandaloneChecklist(); });
 document.getElementById('clResetBtn').addEventListener('click', ()=>{
   if(currentSetupId) standaloneChecklistState[currentSetupId] = {};
   renderStandaloneChecklist();
