@@ -747,12 +747,11 @@ function helpPanel(step, ns){
 function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
   state = state || {};
+  ns = ns || 'default';
+  const selected=ns.split(':').pop();
   const obHint50 = state.ob && ['cisd47','cisd48'].includes(selected) ? '<div class="cl-note">بهتر است در این شرایط SMT داشته باشیم.</div>' : '';
   const smtInfo = obHint50 + `<div class="cl-note">SMT با ES (${obRequiresSmt50(state)?'ضروری برای OB':'اختیاری'}): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
 
-  state = state || {};
-  ns = ns || 'default';
-  const selected=ns.split(':').pop();
   const picker='<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(selected===id?'on':'')+'" aria-pressed="'+(selected===id)+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>';
   return picker + (['crt47','crt48'].includes(selected)?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
     let head, body, skipped = false;
