@@ -388,10 +388,11 @@ function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
 const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs','zoneTowardFvg','zoneEsReversal','esWithoutFvg','entryC1','entryC2','entryAfterC2','beforeFvg'];
 function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&(state.zoneTowardFvg||state.zoneEsReversal))return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
+function obRequiresSmt50(state){return !!state.ob && !['cisd47','cisd48'].includes(state._model47);}
 function poiReady36(state){
  if(!POI_KEYS36.some(k=>state[k]))return false;
  if(['crt47','crt48'].includes(state._model47))return true;
- if(state.ob&&!state.smtYes)return false;
+ if(obRequiresSmt50(state)&&!state.smtYes)return false;
  if(state._model47==='mss48'&&(state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneEsReversal)return !!(state.esWithoutFvg||state.smtYes);
  if((state.bsl||state.ssl)&&!state.routeWithFvg&&!state.routeWithoutFvg)return false;
  if((state.bsl||state.ssl)&&state.routeWithFvg&&state.zoneTowardFvg)return !!(state.beforeFvg && (state.entryC1||state.entryC2) && !state.entryAfterC2);
@@ -746,7 +747,8 @@ function helpPanel(step, ns){
 function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
   state = state || {};
-  const smtInfo = `<div class="cl-note">SMT با ES (${state.ob?'ضروری برای OB':'اختیاری'}): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
+  const obHint50 = state.ob && ['cisd47','cisd48'].includes(selected) ? '<div class="cl-note">بهتر است در این شرایط SMT داشته باشیم.</div>' : '';
+  const smtInfo = obHint50 + `<div class="cl-note">SMT با ES (${obRequiresSmt50(state)?'ضروری برای OB':'اختیاری'}): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
 
   state = state || {};
   ns = ns || 'default';
@@ -807,7 +809,7 @@ function wireChecklist(el, steps, state, after){
    after();
  }));
 
- el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';if((state.ob||state.zoneEsReversal)&&!state.smtYes)resetEntry36(state,steps);after();}));
+ el.querySelectorAll('[data-smt]').forEach(b=>b.addEventListener('click',()=>{state.smtYes=b.dataset.smt==='yes';state.smtNo=b.dataset.smt==='no';if((obRequiresSmt50(state)||state.zoneEsReversal)&&!state.smtYes)resetEntry36(state,steps);after();}));
  el.querySelectorAll('[data-route36]').forEach(btn=>btn.addEventListener('click',()=>{
  const key=btn.dataset.route36;
  if(key==='routeWithFvg'||key==='routeWithoutFvg'){
