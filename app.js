@@ -337,8 +337,8 @@ SETUPS.cisd24={id:'cisd24',label:'چک‌لیست ورود',tag:'iFVG / CISD / M
 ]};
 const MODEL_KEYS47=['crt47','cisd47','mss47','crt48','cisd48','mss48'];
 SETUPS.crt47={...SETUPS.crt23,id:'crt47',label:'مدل ۱ | CRT / BOX',steps:SETUPS.crt23.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
-SETUPS.cisd47={...SETUPS.cisd24,id:'cisd47',label:'مدل ۲ | iFVG + CISD',steps:SETUPS.cisd24.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
-SETUPS.cisd47.steps[1]={n:'2',title:'iFVG سپس CISD',tf:'1m',multi:true,items:[{key:'ifvg',label:'FVGهای مرتبط ابتدا iFVG شدند'},{key:'entryCisd',label:'CISD تأیید شد',requires:'ifvg'}]};
+SETUPS.cisd47={...SETUPS.cisd24,id:'cisd47',label:'مدل ۲ | iFVG + CISD / MSS',steps:SETUPS.cisd24.steps.map(x=>({...x,items:x.items.map(i=>({...i}))}))};
+SETUPS.cisd47.steps[1]={n:'2',title:'iFVG سپس CISD / MSS',tf:'1m',multi:true,requiredKey:'ifvg',anyOf:['entryCisd','entryMss'],items:[{key:'ifvg',label:'FVGهای مرتبط ابتدا iFVG شدند'},{key:'entryCisd',label:'CISD تأیید شد',requires:'ifvg',exclusive:'confirmation'},{key:'entryMss',label:'MSS تأیید شد',requires:'ifvg',exclusive:'confirmation'}]};
 SETUPS.mss47={id:'mss47',label:'مدل ۳ | MSS + FVG',tag:'MSS + FVG',steps:[
  CURRENT_POI,
  {n:'2',title:'همبستگی و نماد ورود',tf:'15m',multi:true,items:[{key:'correlation47',label:'رفتار NQ و ES و همبستگی / SMT بررسی شد'},{key:'sameSymbol47',label:'POI و تأیید ورود متعلق به نماد معامله است'}]},
