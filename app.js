@@ -360,8 +360,8 @@ SETUPS.cisd48={...SETUPS.cisd47,id:'cisd48',steps:SETUPS.cisd47.steps.map(compac
 SETUPS.mss48={...SETUPS.mss47,id:'mss48',steps:[
  {n:'1',title:'همبستگی',tf:'15m',items:[{key:'correlation47',label:'رفتار NQ و ES همبستگی دارد'}]},
  {...CURRENT_POI,n:'2'},
- {n:'3',title:'MSS با کلوز بدنه',tf:'1m',items:[{key:'mssClose47',label:'✓'}]},
- {n:'4',title:'FVG در لگ MSS',tf:'1m',items:[{key:'fvgBefore47',label:'قبل از شکست MSS'},{key:'fvgAfter47',label:'بعد از شکست MSS'}]},
+ {n:'3',title:'MSS با FVG و کلوز بدنه تأیید شد',tf:'1m',items:[{key:'mssFvg54',label:'✓'}]},
+ {n:'4',title:'قبل از FVG، بلاک تشکیل شده؟',tf:'1m',items:[{key:'blockBeforeFvg54',label:'بله، بلاک دارد'},{key:'onlyFvg54',label:'خیر، فقط FVG'}]},
  {n:'5',title:'بازگشت قیمت',tf:'1m',items:[]},
  {n:'6',title:'شکست PB',tf:'1m',items:[{key:'pbWick47',label:'با کلوز بدنه، شدوی بلاک شکسته شد'}]}
 ]};
@@ -371,8 +371,7 @@ function poiGate48(step,state){return state._model47==='mss48'?Number(step.n)>2:
 function modelSteps47(id,state){
  const steps=getSetup(id).steps;
  if(id==='mss48')return steps.map(step=>{
- if(step.n==='5')return {...step,items:[{key:'return48',label:state.fvgAfter47?'قیمت به ۲۵٪، ۵۰٪ یا ۷۵٪ آخرین FVG رسید':'قیمت به BB، OB یا FVG رسید'}]};
- if(step.n==='6')return {...step,title:state.fvgAfter47?'شکست PB · استاپ پشت کندل FVG':'شکست PB'};
+ if(step.n==='5')return {...step,items:state.blockBeforeFvg54?[{key:'returnBlock54',label:'قیمت به بلاک برگشت'}]:state.onlyFvg54?[{key:'returnFvg54',label:'قیمت به FVG برگشت'}]:[],note:state.blockBeforeFvg54?'منتظر بازگشت به بلاک؛ ورود روی FVG مجاز نیست.':''};
  return step;
  });
  if(id!=='mss47')return steps;
@@ -400,7 +399,7 @@ function poiReady36(state){
  if((state.bsl||state.ssl)&&state.routeWithFvg&&!zone)return false;
  return compact48(state)||!zone||!!state.returnTwoLegs;
 }
-function resetEntry36(state,steps){for(const it of steps.filter(x=>Number(x.n)>(state._model47==='mss48'?2:1)).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
+function resetEntry36(state,steps){if(state._model47==='mss48'){state.returnBlock54=false;state.returnFvg54=false;}for(const it of steps.filter(x=>Number(x.n)>(state._model47==='mss48'?2:1)).flatMap(x=>x.items||[]))state[it.key]=false;for(const k of ['ft24','sr24'])state[k]=false;}
 function routeMarkup36(state){
  const chip=(key,label)=>`<button type="button" class="chip ${state[key]?'on':''}" data-route36="${key}" aria-pressed="${!!state[key]}">${label}</button>`;
  let html='';
@@ -844,6 +843,7 @@ function wireChecklist(el, steps, state, after){
       if(item?.exclusive && !isOn){for(const it of steps.flatMap(s=>s.items||[])){if(it.exclusive===item.exclusive)state[it.key]=false;}}
       state[key] = !isOn;
       if(MODEL_KEYS47.includes(state._model47)){
+        if(state._model47==='mss48' && Number(chip.dataset.group)<=4){state.returnBlock54=false;state.returnFvg54=false;state.pbWick47=false;}
         for(const next of steps.filter(x=>Number(x.n)>Number(chip.dataset.group)))for(const it of next.items||[])state[it.key]=false;
         if(['fvgBefore47','fvgAfter47','normalReturn47','gapReturn47'].includes(key))for(const k of ['gap2547','gap5047','gap7547','returnBB47','returnOB47','returnFVG47','stopFvg47','stopSwing47','pbWick47'])state[k]=false;
       }
