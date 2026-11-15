@@ -369,6 +369,8 @@ function compact48(state){return ['crt48','cisd48','mss48'].includes(state._mode
 function poiStep48(step){return step.items.some(i=>POI_KEYS36.includes(i.key));}
 function poiGate48(step,state){return state._model47==='mss48'?Number(step.n)>2:Number(step.n)>=2;}
 function modelSteps47(id,state){
+ if(id==='owner57'&&window.ownerChecklist57){window.ownerChecklist57.render(state);return window.ownerChecklist57.steps(state);}
+
  const steps=getSetup(id).steps;
  if(id==='mss48')return steps.map(step=>{
  if(step.n==='5')return {...step,items:state.blockBeforeFvg54?[{key:'returnBlock54',label:'قیمت به بلاک برگشت'}]:state.onlyFvg54?[{key:'returnFvg54',label:'قیمت به FVG برگشت'}]:[],note:state.blockBeforeFvg54?'منتظر بازگشت به بلاک؛ ورود روی FVG مجاز نیست.':''};
@@ -381,6 +383,7 @@ function modelSteps47(id,state){
  return step;
  });
 }
+SETUPS.owner57={id:'owner57',label:'مدل خصوصی',steps:[]};
 const SETUP_ORDER = ['crt48','cisd48','mss48'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
@@ -423,6 +426,7 @@ function routeMarkup36(state){
 }
 function stepDone(step, state){
   state = state || {};
+  if(state._model47==='owner57')return !!state[step.items[0]?.key];
   if(poiStep48(step)){if(state._model47==='mss48'&&!state.correlation47)return false;return poiReady36(state);}
   if(poiGate48(step,state) && !poiReady36(state))return false;
   if(MODEL_KEYS47.includes(state._model47)){
@@ -590,7 +594,7 @@ function migrateTrade(t){
   if(!KZ_OPTIONS.includes(m.killzone)) m.killzone = 'Out of Killzone';
   if(!m.trend) m.trend = m.direction==='sell' ? 'bearish' : 'bullish';
   if(m.setupId && !SETUPS[m.setupId]) m.legacySetupId=m.legacySetupId||m.setupId;
-  if(!m.setupId || !SETUPS[m.setupId]) m.setupId = 'standard';
+  if(!m.setupId || (!SETUPS[m.setupId] && m.setupId!=='owner57')) m.setupId = 'standard';
   const c = m.checklist || {};
   if(MODEL_KEYS47.includes(m.setupId))c._model47=m.setupId;
   m.checklist = {
@@ -755,6 +759,9 @@ function helpPanel(step, ns){
 
 function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
+ if(ns?.endsWith(':owner57') && window.ownerChecklist57){return '<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(id==='owner57'?'on':'')+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>'+'<div class="owner57">'+window.ownerChecklist57.render(state)+'</div>';}
+
+  if(ns?.endsWith(':owner57')&&!window.ownerChecklist57)return '<p>در حال بررسی دسترسی مدل خصوصی؛ تا دریافت مدل، ثبت تغییرات ممکن نیست.</p>';
   state = state || {};
   ns = ns || 'default';
   const selected=ns.split(':').pop();
@@ -809,6 +816,8 @@ function renderChecklistBlocks(steps, state, ns){
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
+ if(state._model47==='owner57'&&window.ownerChecklist57)window.ownerChecklist57.wire(el,state,after);
+
  el.querySelectorAll('[data-entry-model]').forEach(btn=>btn.addEventListener('click',()=>{
    const id=btn.dataset.entryModel;
    const common={_model47:id};
@@ -2637,3 +2646,5 @@ async function accountCardAction(id,act){
 }
 
 document.getElementById('retryAccountSync').addEventListener('click',async()=>{if(!accountDataReady||pendingCloudSaves)return;await scheduleAutoSync();});
+
+document.getElementById('tradeForm').addEventListener('submit',e=>{if(formSetupId==='owner57'&&!window.ownerChecklist57){e.preventDefault();e.stopImmediatePropagation();showToast('ابتدا دسترسی مدل خصوصی باید تأیید شود.');}},true);

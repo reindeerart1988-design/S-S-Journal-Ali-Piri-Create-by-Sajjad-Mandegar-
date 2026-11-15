@@ -946,3 +946,5 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 .model-road47 p {line-height:2}
 #standaloneChecklist .chip,#formChecklist .chip {white-space:normal;overflow-wrap:anywhere;max-width:100%;min-width:0;line-height:1.8}
 #standaloneChecklist .chips,#formChecklist .chips {min-width:0;flex-wrap:wrap}
+
+.owner57 section{border:1px solid var(--border,#344154);border-radius:14px;padding:16px;margin:10px 0;background:var(--panel,#151e2c)}.owner57 label{display:block;padding:9px 0;line-height:1.8}.owner57 select{padding:9px;border-radius:10px;background:var(--bg,#121b29);color:var(--text,#e9edf4);max-width:100%}.owner57 input{accent-color:#bc984b}.owner57 aside{color:#bc984b;line-height:1.9}.owner57 details{line-height:1.9}
