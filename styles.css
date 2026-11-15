@@ -956,3 +956,5 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 .owner57 button.owner58-choice:hover{border-color:#8394ff;}
 .owner57 button.owner58-choice:focus-visible{outline:2px solid #8394ff;outline-offset:3px;}
 .owner57 section:has(.owner58-choice.active){border-color:var(--emerald);}
+
+.owner59-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.owner57 .owner59-row .owner58-options{margin:0}.owner57 section{padding:16px!important}.owner57 section>small{display:block;color:var(--muted);margin-top:8px}
