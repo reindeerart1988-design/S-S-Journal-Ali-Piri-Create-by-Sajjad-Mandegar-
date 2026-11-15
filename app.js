@@ -461,7 +461,17 @@ function setTradeSymbol(value){
     const option=new Option(symbol,symbol);option.dataset.legacySymbol='1';select.add(option);
   }
   select.value=symbol;
+  syncLondon55();
 }
+
+function syncLondon55(){
+ const group=document.getElementById('segKillzone');if(!group)return;
+ const forex=['EURUSD','GBPUSD'].includes(tradeSymbol(document.getElementById('f-symbol').value));
+ group.querySelectorAll('[data-val="London"]').forEach(b=>b.remove());
+ if(forex){const b=document.createElement('button');b.type='button';b.dataset.val='London';b.textContent='London · 02:00–05:00 NY';b.addEventListener('click',()=>setSeg('segKillzone','London'));group.appendChild(b);}
+ else if(getSeg('segKillzone')==='London')setSeg('segKillzone','Out of Killzone');
+}
+document.getElementById('f-symbol').addEventListener('change',()=>{const was=getSeg('segKillzone');syncLondon55();if(was==='London'&&!['EURUSD','GBPUSD'].includes(tradeSymbol(document.getElementById('f-symbol').value)))setSeg('segKillzone','Out of Killzone');});
 
 const ICONS = { chevron:'<path d="m6 9 6 6 6-6"/>' };
 
@@ -958,7 +968,7 @@ function openEditForm(t){
   setSeg('segResult', t.result||'win');
   const kzGroup=document.getElementById('segKillzone');
   kzGroup.querySelectorAll('[data-legacy]').forEach(b=>b.remove());
-  if(t.killzone && !['NY AM','NY PM','Out of Killzone'].includes(t.killzone)){ const b=document.createElement('button');b.type='button';b.dataset.val=t.killzone;b.dataset.legacy='1';b.textContent=t.killzone;b.addEventListener('click',()=>setSeg('segKillzone',t.killzone));kzGroup.appendChild(b); }
+  if(t.killzone && !['NY AM','NY PM','Out of Killzone','London'].includes(t.killzone)){ const b=document.createElement('button');b.type='button';b.dataset.val=t.killzone;b.dataset.legacy='1';b.textContent=t.killzone;b.addEventListener('click',()=>setSeg('segKillzone',t.killzone));kzGroup.appendChild(b); }
   setSeg('segKillzone', t.killzone||'Out of Killzone');
   applyResultUI();
   document.getElementById('f-rr').value = t.result==='be' ? '' : Math.abs(Number(t.rr)||0);
