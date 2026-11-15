@@ -948,3 +948,11 @@ html[data-theme] button:focus-visible,html[data-theme] select:focus-visible{outl
 #standaloneChecklist .chips,#formChecklist .chips {min-width:0;flex-wrap:wrap}
 
 .owner57 section{border:1px solid var(--border,#344154);border-radius:14px;padding:16px;margin:10px 0;background:var(--panel,#151e2c)}.owner57 label{display:block;padding:9px 0;line-height:1.8}.owner57 select{padding:9px;border-radius:10px;background:var(--bg,#121b29);color:var(--text,#e9edf4);max-width:100%}.owner57 input{accent-color:#bc984b}.owner57 aside{color:#bc984b;line-height:1.9}.owner57 details{line-height:1.9}
+
+/* v58: inline private choices, matching existing checklist pills */
+.owner57 .owner58-options{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0;}
+.owner57 button.owner58-choice{appearance:none;border:1px solid var(--line);border-radius:999px;background:var(--bg-2);color:var(--ink);font:inherit;font-size:13px;font-weight:700;padding:11px 16px;line-height:1.6;cursor:pointer;white-space:normal;text-align:right;min-height:42px;}
+.owner57 button.owner58-choice.active{background:#39336b;border-color:#8394ff;color:#fff;}
+.owner57 button.owner58-choice:hover{border-color:#8394ff;}
+.owner57 button.owner58-choice:focus-visible{outline:2px solid #8394ff;outline-offset:3px;}
+.owner57 section:has(.owner58-choice.active){border-color:var(--emerald);}
