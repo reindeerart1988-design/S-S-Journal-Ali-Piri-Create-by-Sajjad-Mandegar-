@@ -759,7 +759,7 @@ function helpPanel(step, ns){
 
 function isolateLabel(s){ return esc(s).replace(/[A-Za-z]+(?:\/[A-Za-z]+)*/g, v=>'<bdi dir="ltr">'+v+'</bdi>'); }
 function renderChecklistBlocks(steps, state, ns){
- if(ns?.endsWith(':owner57') && window.ownerChecklist57){return '<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(id==='owner57'?'on':'')+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>'+'<div class="owner57">'+window.ownerChecklist57.render(state)+'</div>';}
+ if(ns?.endsWith(':owner57') && window.ownerChecklist57){return '<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(id==='owner57'?'on':'')+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>'+'<div class="owner60">'+window.ownerChecklist57.render(state)+'</div>';}
 
   if(ns?.endsWith(':owner57')&&!window.ownerChecklist57)return '<p>در حال بررسی دسترسی مدل خصوصی؛ تا دریافت مدل، ثبت تغییرات ممکن نیست.</p>';
   state = state || {};
@@ -816,7 +816,7 @@ function renderChecklistBlocks(steps, state, ns){
   }).join('');
 }
 function wireChecklist(el, steps, state, after){
- if(state._model47==='owner57'&&window.ownerChecklist57)window.ownerChecklist57.wire(el,state,after);
+ if(state._model47==='owner57'&&window.ownerChecklist57)window.ownerChecklist57.wire(el,state,()=>{if(el.id==='formChecklist')setTradeSymbol(state.symbol);after();});
 
  el.querySelectorAll('[data-entry-model]').forEach(btn=>btn.addEventListener('click',()=>{
    const id=btn.dataset.entryModel;
@@ -906,6 +906,7 @@ function renderFormChecklist(){
   document.getElementById('formSetupSwitch')?.replaceChildren();
   const el = document.getElementById('formChecklist');
   formChecklistState._model47=formSetupId;
+  if(formSetupId==='owner57')formChecklistState.symbol=tradeSymbol(document.getElementById('f-symbol').value);
   const steps = modelSteps47(formSetupId,formChecklistState);
   el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
   wireChecklist(el, steps, formChecklistState, renderFormChecklist);
@@ -2648,3 +2649,6 @@ async function accountCardAction(id,act){
 document.getElementById('retryAccountSync').addEventListener('click',async()=>{if(!accountDataReady||pendingCloudSaves)return;await scheduleAutoSync();});
 
 document.getElementById('tradeForm').addEventListener('submit',e=>{if(formSetupId==='owner57'&&!window.ownerChecklist57){e.preventDefault();e.stopImmediatePropagation();showToast('ابتدا دسترسی مدل خصوصی باید تأیید شود.');}},true);
+
+// Keep registration symbol and its private checklist on the same instrument.
+document.getElementById('f-symbol').addEventListener('change',()=>{if(formSetupId==='owner57'){formChecklistState={_model47:'owner57',ownerVersion:60,symbol:tradeSymbol(document.getElementById('f-symbol').value)};renderFormChecklist();}});
