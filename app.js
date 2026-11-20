@@ -906,7 +906,12 @@ function renderFormChecklist(){
   document.getElementById('formSetupSwitch')?.replaceChildren();
   const el = document.getElementById('formChecklist');
   formChecklistState._model47=formSetupId;
-  if(formSetupId==='owner57')formChecklistState.symbol=tradeSymbol(document.getElementById('f-symbol').value);
+  const privateModel=window.ownerChecklist57;
+  const symbolField=document.getElementById('f-symbol');
+  const limits=formSetupId==='owner57'&&privateModel&&!privateModel.isLegacy?.(formChecklistState)?privateModel.allowedSymbols:null;
+  Array.from(symbolField.options).forEach(o=>{o.disabled=!!limits&&!limits.includes(o.value);});
+  if(limits&&!limits.includes(tradeSymbol(symbolField.value)))setTradeSymbol(limits[0]);
+  if(formSetupId==='owner57')formChecklistState.symbol=tradeSymbol(symbolField.value);
   const steps = modelSteps47(formSetupId,formChecklistState);
   el.innerHTML = renderChecklistBlocks(steps, formChecklistState, 'form:'+formSetupId);
   wireChecklist(el, steps, formChecklistState, renderFormChecklist);
@@ -2648,7 +2653,7 @@ async function accountCardAction(id,act){
 
 document.getElementById('retryAccountSync').addEventListener('click',async()=>{if(!accountDataReady||pendingCloudSaves)return;await scheduleAutoSync();});
 
-document.getElementById('tradeForm').addEventListener('submit',e=>{if(formSetupId==='owner57'&&!window.ownerChecklist57){e.preventDefault();e.stopImmediatePropagation();showToast('ابتدا دسترسی مدل خصوصی باید تأیید شود.');}},true);
+document.getElementById('tradeForm').addEventListener('submit',e=>{if(formSetupId==='owner57'&&window.ownerChecklist57?.allowedSymbols&&!window.ownerChecklist57.isLegacy?.(formChecklistState)&&!window.ownerChecklist57.allowedSymbols.includes(tradeSymbol(document.getElementById('f-symbol').value))){e.preventDefault();e.stopImmediatePropagation();showToast('نماد معامله با مدل انتخاب‌شده سازگار نیست.');return;}if(formSetupId==='owner57'&&!window.ownerChecklist57){e.preventDefault();e.stopImmediatePropagation();showToast('ابتدا دسترسی مدل خصوصی باید تأیید شود.');}},true);
 
 // Keep registration symbol and its private checklist on the same instrument.
-document.getElementById('f-symbol').addEventListener('change',()=>{if(formSetupId==='owner57'){formChecklistState={_model47:'owner57',ownerVersion:60,symbol:tradeSymbol(document.getElementById('f-symbol').value)};renderFormChecklist();}});
+document.getElementById('f-symbol').addEventListener('change',()=>{if(formSetupId==='owner57'){const m=window.ownerChecklist57;if(m?.allowedSymbols&&!m.isLegacy?.(formChecklistState)){setTradeSymbol(m.allowedSymbols[0]);renderFormChecklist();return;}formChecklistState={_model47:'owner57',ownerVersion:60,symbol:tradeSymbol(document.getElementById('f-symbol').value)};renderFormChecklist();}});
