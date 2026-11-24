@@ -193,10 +193,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     const profileChip = document.getElementById('profileChip');
-    if(profileChip) profileChip.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('account'); });
+    if(profileChip) profileChip.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('settings'); });
 
     const sidebarProfile = document.getElementById('sidebarProfile');
-    if(sidebarProfile) sidebarProfile.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('account'); });
+    if(sidebarProfile) sidebarProfile.addEventListener('click', ()=>{ if(typeof goToView==='function') goToView('settings'); });
 
     const saveProfileBtn = document.getElementById('saveProfileBtn');
     if(saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfile);
@@ -1583,6 +1583,7 @@ function renderDashboard(){
   renderExpectancy(ann);
   renderWinnersLosers(ann);
   renderPerformance(ann);
+  window.dispatchEvent(new CustomEvent("ss:dashboard",{detail:{ann}}));
   if(!ann.length){ document.getElementById('statGridPerf').innerHTML='';document.getElementById('statGridAccount').innerHTML=''; }
 }
 

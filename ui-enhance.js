@@ -14,11 +14,11 @@
   }
 
   ready(function(){
-    injectBgMesh();
-    initNavPill();
-    initSlidingPills();
+    /* Replaced by v68 workspace design system. */
+    /* Replaced by v68 workspace design system. */
+    /* Replaced by v68 workspace design system. */
     initCommandPalette();
-    watchDashboard();
+    /* Replaced by v68 workspace design system. */
     watchEquity();
     watchCalendar();
   });
