@@ -74,18 +74,26 @@
   }
 
   /* ---------- Chart thumbnails ---------- */
+   /* ---------- Chart thumbnails ---------- */
   function linkOf(el) {
-    if (el.href) return el.href;
+    const h = el.getAttribute('href');
+    if (h && !/^(#|javascript:)/i.test(h)) return el.href;
     for (const at of el.attributes) {
       const m = at.value.match(/https?:\/\/[^\s'"`)]+/);
       if (m) return m[0];
     }
-    return '';
+    // The app opens the link inside its click handler: capture the URL without opening a tab
+    let url = '';
+    const orig = window.open;
+    const fake = { closed: false, focus() {}, close() {}, document: { write() {}, close() {} } };
+    window.open = u => { url = String(u || ''); return fake; };
+    try { el.click(); } catch (e) {} finally { window.open = orig; }
+    return url;
   }
   function imgUrl(href) {
     try {
       const u = new URL(href, location.href);
-      if (/\.(png|jpe?g|webp|gif)$/i.test(u.pathname)) return u.href;
+      if (/\.(png|jpe?g|webp|gif|avif)$/i.test(u.pathname)) return u.href;
       const m = u.hostname.endsWith('tradingview.com') && u.pathname.match(/^\/x\/([A-Za-z0-9]+)\/?$/);
       if (m) return 'https://s3.tradingview.com/snapshots/' + m[1][0].toLowerCase() + '/' + m[1] + '.png';
     } catch (e) {}
@@ -96,10 +104,11 @@
       if (el.dataset.thumb) return;
       const label = el.textContent.trim();
       if (!/chart/i.test(label) || label.length > 40) return;
+      el.dataset.thumb = 'loading';
       const link = linkOf(el), src = imgUrl(link);
-      el.dataset.thumb = src ? 'loading' : 'none';
-      if (!src) return;
+      if (!src) { el.dataset.thumb = 'none'; return; }
       const img = new Image();
+      img.referrerPolicy = 'no-referrer';
       img.decoding = 'async'; img.alt = label;
       img.onload = () => {
         const cap = document.createElement('span');
@@ -119,7 +128,7 @@
     if (!t) return;
     e.preventDefault(); e.stopPropagation();
     const box = document.createElement('div'); box.className = 'ss-lightbox';
-    const im = document.createElement('img'); im.src = t.querySelector('img').src; im.alt = '';
+    const im = document.createElement('img'); im.referrerPolicy = 'no-referrer'; im.src = t.querySelector('img').src; im.alt = '';
     const open = document.createElement('a'); open.href = t.dataset.link; open.target = '_blank'; open.rel = 'noopener'; open.textContent = 'باز کردن لینک اصلی ↗';
     box.append(im, open);
     const esc = ev => { if (ev.key === 'Escape') close(); };
