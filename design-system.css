@@ -723,4 +723,37 @@ html[data-theme] .more-item svg{width:22px;height:22px;stroke:var(--accent);fill
 /* ---------- 22. Accessibility: reduced motion ---------- */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}/* =====================================================================
+   Edition 70.1 — polish after first screenshots
+===================================================================== */
+
+/* Equity chart internals are LTR: price axis sits outside the plot */
+#equityWrap{direction:ltr}
+
+/* Sidebar: active indicator lives inside the item (was clipped by the scroll area) */
+html[data-theme] .tab-btn.active::before{inset-inline-start:0;top:12px;bottom:12px;width:3px;border-radius:3px 0 0 3px;box-shadow:0 0 10px var(--accent)}
+html[data-theme] .kz-clock{flex-shrink:0}
+
+/* Subscription strip + account picker read as one card */
+html[data-theme] .subscription-bar:not([hidden]){margin-bottom:0;padding:9px 14px;border-radius:16px 16px 0 0;font-size:12.5px}
+html[data-theme] .subscription-bar:not([hidden]) + .trading-account-bar{border-top:0;border-radius:0 0 16px 16px}
+
+/* Checklist rows: recessed inside the panel, calmer "done" state */
+html[data-theme] .cl-row,html[data-theme] .owner62 .cl-row,html[data-theme] .owner57 section{background:var(--bg-2)!important;box-shadow:none!important}
+html[data-theme] .cl-row.done,html[data-theme] .owner62 .cl-row.done,html[data-theme] .owner57 section:has(.owner58-choice.active){background:var(--bg-2)!important;border-color:color-mix(in srgb,var(--positive) 32%,var(--line))!important}
+html[data-theme] .cl-row .cl-note{background:var(--panel)}
+html[data-theme] .cl-row.done .cl-n{font-size:0!important}
+html[data-theme] .cl-row.done .cl-n::after{content:'✓';font:800 14px/1 Inter,sans-serif}
+
+/* Disabled options: clearly unavailable, still readable */
+html[data-theme] .chip:disabled{opacity:.6;color:var(--muted);background:transparent;border:1px dashed var(--line-2)}
+
+/* "Setup complete" moment — triggers when the progress bar reaches 100% */
+@keyframes readyGlow{
+  0%,100%{box-shadow:0 10px 24px -12px color-mix(in srgb,var(--accent) 85%,transparent),0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}
+  50%{box-shadow:0 10px 24px -12px color-mix(in srgb,var(--accent) 85%,transparent),0 0 0 9px transparent}
 }
+html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) .cl-progress-fill{background:linear-gradient(90deg,var(--positive),var(--accent-2))!important;box-shadow:0 0 22px -2px var(--positive)!important}
+html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) #clProgressText{color:var(--positive)!important;font-weight:650!important}
+.checklist-panel:has(#clProgressFill[style*="100%"]) #clProgressText::after{content:' · همه‌ی شرایط ورود تأیید شد'}
+html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) #clGoJournalBtn{animation:readyGlow 2s var(--ease) infinite}
