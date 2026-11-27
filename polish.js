@@ -39,13 +39,13 @@
   }
   const SESS = [{ n: 'NY AM', s: 570, e: 660 }, { n: 'NY PM', s: 660, e: 960 }];
   const dur = m => { const h = Math.floor(m / 60), r = m % 60; return !h ? fa(r) + ' دقیقه' : !r ? fa(h) + ' ساعت' : fa(h) + ' ساعت و ' + fa(r) + ' دقیقه'; };
-  function status() {
+    function status() {
     const { day, min } = nyNow();
-    if (day === 'Sat' || day === 'Sun') return { live: false, t: 'بازار تعطیله؛ وقت خوبیه برای مرور ژورنال' };
-    for (const s of SESS) if (min >= s.s && min < s.e) return { live: true, t: s.n + ' فعاله · ' + dur(s.e - min) + ' تا پایان' };
-    const next = SESS.find(s => min < s.s);
-    return next ? { live: false, t: next.n + ' ' + dur(next.s - min) + ' دیگه شروع می‌شه' }
-                : { live: false, t: 'سشن‌های امروز تموم شد؛ وقت مرور معاملات' };
+    if (day === 'Sat' || day === 'Sun') return { live: false, s: '', t: 'بازار تعطیله؛ وقت خوبیه برای مرور ژورنال' };
+    for (const x of SESS) if (min >= x.s && min < x.e) return { live: true, s: x.n, t: 'فعاله · ' + dur(x.e - min) + ' تا پایان' };
+    const next = SESS.find(x => min < x.s);
+    return next ? { live: false, s: next.n, t: dur(next.s - min) + ' دیگه شروع می‌شه' }
+                : { live: false, s: '', t: 'سشن‌های امروز تموم شد؛ وقت مرور معاملات' };
   }
   function anchorPoint() {
     let el = findText('تصویر روشن عملکرد');
@@ -56,18 +56,19 @@
     }
     return el;
   }
-  function renderGreeting() {
+   function renderGreeting() {
     let el = document.getElementById('ssGreeting');
     if (!el || !document.body.contains(el)) {
       const at = anchorPoint();
       if (!at) return;
       el = document.createElement('div');
       el.id = 'ssGreeting'; el.className = 'ss-greet';
-      el.innerHTML = '<span class="ss-greet-hi"></span><span class="ss-greet-st"><i></i><b></b></span>';
+      el.innerHTML = '<span class="ss-greet-hi"></span><span class="ss-greet-st"><i></i><bdi class="ss-sess"></bdi><b></b></span>';
       at.parentNode.insertBefore(el, at);
     }
     const name = userName(), st = status();
     el.querySelector('.ss-greet-hi').textContent = hello() + (name ? '، ' + name : '');
+    el.querySelector('.ss-sess').textContent = st.s;
     el.querySelector('.ss-greet-st b').textContent = st.t;
     el.classList.toggle('is-live', st.live);
   }

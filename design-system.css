@@ -808,3 +808,10 @@ a.ss-thumb span{font-size:11.5px;color:var(--muted);text-align:center;direction:
 .ss-lightbox.on img{transform:none}
 .ss-lightbox a{color:var(--accent);font-size:13px;text-decoration:none}
 @media (prefers-reduced-motion:reduce){.ss-greet,.ss-greet-st i,a.ss-thumb img{animation:none;transition:none}}
+/* Edition 72 — greeting size + bidi */
+.ss-greet{gap:10px 14px;margin:8px 0 16px}
+.ss-greet-hi{font-size:17px;font-weight:700}
+.ss-greet-st{font-size:13px;padding:6px 14px;gap:8px}
+.ss-greet-st .ss-sess{font-family:Inter,sans-serif;font-weight:700;color:var(--accent);direction:ltr;unicode-bidi:isolate}
+.ss-greet-st .ss-sess:empty{display:none}
+@media (max-width:560px){.ss-greet-hi{font-size:15.5px}.ss-greet-st{font-size:12px}}
