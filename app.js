@@ -1130,14 +1130,40 @@ function toggleTradeCard(id){
     if(inner.dataset.loaded==='0'){ inner.dataset.loaded='1'; renderTradeDetail(inner,id); }
   }
 }
+/* Chart link → image URL (direct image files, TradingView /x/ snapshots) */
+function chartImageUrl(u){
+  try{
+    const url = new URL(u);
+    if(/\.(png|jpe?g|webp|gif|avif)$/i.test(url.pathname)) return url.href;
+    const m = url.hostname.endsWith('tradingview.com') && url.pathname.match(/^\/x\/([A-Za-z0-9]+)\/?$/);
+    if(m) return `https://s3.tradingview.com/snapshots/${m[1][0].toLowerCase()}/${m[1]}.png`;
+  }catch(e){}
+  return '';
+}
+function openChartLightbox(src, url){
+  const box = document.createElement('div'); box.className = 'ss-lightbox';
+  const im = document.createElement('img'); im.referrerPolicy = 'no-referrer'; im.src = src; im.alt = '';
+  const open = document.createElement('a'); open.href = url; open.target = '_blank'; open.rel = 'noopener'; open.textContent = 'باز کردن لینک اصلی ↗';
+  box.append(im, open);
+  const onKey = ev=>{ if(ev.key==='Escape') close(); };
+  const close = ()=>{ box.classList.remove('on'); document.removeEventListener('keydown', onKey); setTimeout(()=>box.remove(), 200); };
+  box.addEventListener('click', ev=>{ if(ev.target!==open) close(); });
+  document.addEventListener('keydown', onKey);
+  document.body.append(box);
+  requestAnimationFrame(()=>box.classList.add('on'));
+}
 function renderTradeDetail(inner, id){
   const t = trades.find(x=>x.id===id);
   if(!t) return;
   const commission = calcCommission(t), net = calcNet(t);
-  const linkBtn = (tf,url)=>{
+    const linkBtn = (tf,url)=>{
     const u = safeUrl(url);
-    return u ? `<span class="detail-link" data-url="${esc(u)}" role="button" tabindex="0">${tf} chart ↗</span>`
-             : `<span class="detail-link off">${tf} — no link</span>`;
+    if(!u) return `<span class="detail-link off">${tf} — no link</span>`;
+    const img = chartImageUrl(u);
+    if(!img) return `<span class="detail-link" data-url="${esc(u)}" role="button" tabindex="0">${tf} chart ↗</span>`;
+    return `<button type="button" class="chart-thumb" data-url="${esc(u)}" data-img="${esc(img)}">
+      <span class="chart-thumb-img"><img src="${esc(img)}" alt="${tf} chart" decoding="async" referrerpolicy="no-referrer"></span>
+      <span class="chart-thumb-cap en">${tf} chart</span></button>`;
   };
 
   inner.innerHTML = `
@@ -1177,6 +1203,17 @@ function renderTradeDetail(inner, id){
     const open = ()=> window.open(s.dataset.url,'_blank','noopener');
     s.addEventListener('click', open);
     s.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+  });
+    inner.querySelectorAll('.chart-thumb').forEach(b=>{
+    const img = b.querySelector('img');
+    const fail = ()=> b.classList.add('no-img');
+    img.addEventListener('error', fail);
+    if(img.complete && !img.naturalWidth) fail();
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(b.classList.contains('no-img')) window.open(b.dataset.url,'_blank','noopener');
+      else openChartLightbox(b.dataset.img, b.dataset.url);
+    });
   });
   inner.querySelector('[data-edit]').addEventListener('click', e=>{ e.stopPropagation(); openEditForm(t); });
   inner.querySelector('[data-del]').addEventListener('click', async e=>{
