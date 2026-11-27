@@ -367,8 +367,7 @@ SETUPS.mss48={...SETUPS.mss47,id:'mss48',steps:[
 ]};
 function compact48(state){return ['crt48','cisd48','mss48'].includes(state._model47);}
 function poiStep48(step){return step.items.some(i=>POI_KEYS36.includes(i.key));}
-function poiGate48(step,state){return state._model47==='mss48'?Number(step.n)>2:Number(step.n)>=2;}
-function modelSteps47(id,state){
+function poiGate48(step,state){if(isCustomSetup(state._model47))return false;return state._model47==='mss48'?Number(step.n)>2:Number(step.n)>=2;}function modelSteps47(id,state){
  if(id==='owner57'&&window.ownerChecklist57){window.ownerChecklist57.render(state);return window.ownerChecklist57.steps(state);}
 
  const steps=getSetup(id).steps;
@@ -387,6 +386,30 @@ SETUPS.owner57={id:'owner57',label:'مدل خصوصی',steps:[]};
 const SETUP_ORDER = ['crt48','cisd48','mss48'];
 function getSetup(id){ return SETUPS[id] || SETUPS.standard; }
 
+/* ============================================================
+   PERSONAL CHECKLISTS — built by each user, free-order steps
+============================================================ */
+let customChecklists = [];
+function isCustomSetup(id){ return typeof id==='string' && id.startsWith('cx_'); }
+function customSetupId(c){ return 'cx_'+c.id+'_'+(Number(c.version)||1); }
+function cxText(s,max){ return String(s==null?'':s).replace(/[<>&"'`]/g,'').trim().slice(0,max); }
+function customSetupFrom(id, def){
+  return { id, label:cxText(def.name,40)||'چک‌لیست من', tag:'CUSTOM', custom:true,
+    steps:(Array.isArray(def.steps)?def.steps:[]).map((s,i)=>({
+      n:String(i+1), title:cxText(s.title,80)||'مرحله', tf:String(s.tf||'').replace(/[^0-9A-Za-z]/g,'').slice(0,6), multi:!!s.multi,
+      items:(Array.isArray(s.options)?s.options:[]).map(o=>({ key:'cx:'+cxText(s.id,20)+':'+cxText(o.id,20), label:isolateLabel(cxText(o.label,60)) }))
+    }))
+  };
+}
+function registerCustomChecklists(list){
+  customChecklists = (Array.isArray(list)?list:[]).filter(c=>c && typeof c.id==='string' && Array.isArray(c.steps)).slice(0,10);
+  for(let i=SETUP_ORDER.length-1;i>=0;i--) if(isCustomSetup(SETUP_ORDER[i])) SETUP_ORDER.splice(i,1);
+  customChecklists.forEach(c=>{ const id=customSetupId(c); SETUPS[id]=customSetupFrom(id,c); SETUP_ORDER.push(id); });
+}
+function customSnapshot(id){
+  const c = customChecklists.find(x=>customSetupId(x)===id);
+  return c ? JSON.parse(JSON.stringify({ name:c.name, steps:c.steps })) : null;
+}
 const POI_KEYS36=['ssl','bsl','fvg','poiIfvg','ob','rjb'];
 const ROUTE_KEYS36=['routeWithFvg','routeWithoutFvg','zoneFvg','zoneIfvg','returnTwoLegs','zoneTowardFvg','zoneEsReversal','esWithoutFvg','entryC1','entryC2','entryAfterC2','beforeFvg'];
 function entryZone36(state){if((state.bsl||state.ssl)&&state.routeWithFvg&&(state.zoneTowardFvg||state.zoneEsReversal))return null;return state.bsl||state.ssl ? (state.routeWithFvg?(state.zoneIfvg?'ifvg':state.zoneFvg?'fvg':null):null) : state.poiIfvg?'ifvg':state.fvg?'fvg':null;}
@@ -426,6 +449,7 @@ function routeMarkup36(state){
 }
 function stepDone(step, state){
   state = state || {};
+  if(isCustomSetup(state._model47)) return (step.items||[]).some(it=>!!state[it.key]);
   if(state._model47==='owner57')return !!state[step.items[0]?.key];
   if(poiStep48(step)){if(state._model47==='mss48'&&!state.correlation47)return false;return poiReady36(state);}
   if(poiGate48(step,state) && !poiReady36(state))return false;
@@ -593,10 +617,11 @@ function migrateTrade(t){
 
   if(!KZ_OPTIONS.includes(m.killzone)) m.killzone = 'Out of Killzone';
   if(!m.trend) m.trend = m.direction==='sell' ? 'bearish' : 'bullish';
+  if(isCustomSetup(m.setupId) && !SETUPS[m.setupId] && m.customSnapshot) SETUPS[m.setupId] = customSetupFrom(m.setupId, m.customSnapshot);
   if(m.setupId && !SETUPS[m.setupId]) m.legacySetupId=m.legacySetupId||m.setupId;
   if(!m.setupId || (!SETUPS[m.setupId] && m.setupId!=='owner57')) m.setupId = 'standard';
   const c = m.checklist || {};
-  if(MODEL_KEYS47.includes(m.setupId))c._model47=m.setupId;
+  if(MODEL_KEYS47.includes(m.setupId)||isCustomSetup(m.setupId))c._model47=m.setupId;
   m.checklist = {
     ...c, smtYes:!!c.smtYes || (!c.smtNo && !!c.smtSweep), smtNo:!!c.smtNo && !c.smtYes, withCrt:!c.withoutCrt && !!(c.withCrt || c.crt || c.box || c.crt_box), withoutCrt:!!c.withoutCrt,
     entryCisd:!!(c.ifvg && c.entryCisd), entryMss:!!(c.ifvg && c.entryMss && !c.entryCisd), bb:!!c.bb, poiIfvg:!!c.poiIfvg, pullbackCisd:!!c.pullbackCisd,
@@ -769,7 +794,7 @@ function renderChecklistBlocks(steps, state, ns){
   const smtInfo = obHint50 + `<div class="cl-note">SMT با ES (${obRequiresSmt50(state)?'ضروری برای OB':'اختیاری'}): <button type="button" class="chip ${state.smtYes?'on':''}" data-smt="yes">بله</button> <button type="button" class="chip ${state.smtNo?'on':''}" data-smt="no">خیر</button></div>`;
 
   const picker='<div class="cl-model-picker47"><strong>مدل ورود</strong><div class="chips">'+SETUP_ORDER.map(id=>'<button type="button" class="chip '+(selected===id?'on':'')+'" aria-pressed="'+(selected===id)+'" data-entry-model="'+id+'">'+SETUPS[id].label+'</button>').join('')+'</div></div>';
-  return picker + (['crt47','crt48'].includes(selected)?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
+  return picker + (['crt47','crt48'].includes(selected)||isCustomSetup(selected)?'':smtInfo.replace('SMT با ES','SMT بین NQ و ES')) + steps.map(step=>{
     let head, body, skipped = false;
     if(step.type==='model'){
       head = `<div class="cl-head"><span class="cl-n en">2</span><span class="cl-t">CRT / BOX <i class="en">15m</i></span></div>`;
@@ -1043,7 +1068,8 @@ document.getElementById('tradeForm').addEventListener('submit', async e=>{
     entryReason: document.getElementById('f-entryReason').value,
     exitReason: document.getElementById('f-exitReason').value,
     notes: document.getElementById('f-notes').value,
-    setupId: formSetupId,
+        setupId: formSetupId,
+    customSnapshot: isCustomSetup(formSetupId) ? (customSnapshot(formSetupId) || (editingTradeId && (trades.find(x=>x.id===editingTradeId)||{}).customSnapshot) || null) : null,
     checklist: { ...formChecklistState },
     links: {
       '15': document.getElementById('f-link15').value.trim(),
@@ -2548,10 +2574,11 @@ function normalizeTradingAccounts(payload){
  });
 }
 function loadTradingAccountPayload(payload){
+ registerCustomChecklists(payload&&payload.customChecklists);
  const list=normalizeTradingAccounts(payload);const id=list.some(a=>a.id===payload.activeAccountId)?payload.activeAccountId:list[0].id;
  tradingAccounts=list;activeTradingAccountId=id;const active=activeTradingAccount();trades=active.trades;settings=active.settings;
 }
-function tradingAccountPayload(){checkpointTradingAccount();return JSON.parse(JSON.stringify({accountSchema:1,accounts:tradingAccounts,activeAccountId:activeTradingAccountId,trades,settings,syncedAt:new Date().toISOString()}));}
+function tradingAccountPayload(){checkpointTradingAccount();return JSON.parse(JSON.stringify({accountSchema:1,customChecklists,accounts:tradingAccounts,activeAccountId:activeTradingAccountId,trades,settings,syncedAt:new Date().toISOString()}));}
 function persistTradingAccounts(){
  checkpointTradingAccount();if(!currentUser||!accountDataReady)return true;
  try{localStorage.setItem('ss:accounts:'+currentUser.id,JSON.stringify(tradingAccountPayload()));return true;}
