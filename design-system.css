@@ -757,3 +757,54 @@ html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) .cl-progre
 html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) #clProgressText{color:var(--positive)!important;font-weight:650!important}
 .checklist-panel:has(#clProgressFill[style*="100%"]) #clProgressText::after{content:' · همه‌ی شرایط ورود تأیید شد'}
 html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) #clGoJournalBtn{animation:readyGlow 2s var(--ease) infinite}
+/* =====================================================================
+   Edition 71 — mobile fixes, gold checklist, greeting, chart thumbnails
+===================================================================== */
+
+/* Safe area: top bar clears the phone's status bar */
+html{scroll-padding-top:calc(84px + env(safe-area-inset-top))}
+@media (max-width:760px){
+  html[data-theme] .kz-bar{padding-top:calc(8px + env(safe-area-inset-top))!important}
+  html[data-theme] .kz-clock .lbl{display:none}
+  html[data-theme] .kz-pills{-webkit-mask-image:linear-gradient(to left,#000 82%,transparent);mask-image:linear-gradient(to left,#000 82%,transparent)}
+  html[data-theme] .form-actions{padding:8px!important;gap:8px!important}
+  html[data-theme] .form-actions button{min-height:46px!important}
+}
+
+/* iOS date/time inputs no longer overflow their card */
+html[data-theme] input[type=date],html[data-theme] input[type=time],html[data-theme] input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:right}
+html[data-theme] select{text-overflow:ellipsis}
+html[data-theme] table td{font-family:inherit!important}
+
+/* Checklist "done" state: gold instead of green */
+html[data-theme] .cl-row.done,html[data-theme] .owner62 .cl-row.done,html[data-theme] .owner57 section:has(.owner58-choice.active){
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 9%,var(--bg-2)),var(--bg-2) 70%)!important;
+  border-color:color-mix(in srgb,var(--accent) 38%,var(--line))!important}
+html[data-theme] .cl-row.done .cl-n{background:var(--accent)!important;color:#1A1407!important;border-color:transparent!important}
+html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) .cl-progress-fill{background:linear-gradient(90deg,var(--accent),var(--accent-2))!important;box-shadow:0 0 22px -2px var(--accent)!important}
+html[data-theme] .checklist-panel:has(#clProgressFill[style*="100%"]) #clProgressText{color:var(--accent)!important}
+
+/* Greeting + live session status */
+@keyframes ssRise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ssPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 60%,transparent)}50%{box-shadow:0 0 0 5px transparent}}
+.ss-greet{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px;animation:ssRise .5s var(--ease) both}
+.ss-greet-hi{font-size:14px;font-weight:650;color:var(--accent)}
+.ss-greet-st{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border:1px solid var(--line);border-radius:999px;background:var(--bg-2);color:var(--muted);font-size:12px}
+.ss-greet-st i{width:6px;height:6px;border-radius:50%;background:var(--faint)}
+.ss-greet-st b{font-weight:500}
+.ss-greet.is-live .ss-greet-st{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.ss-greet.is-live .ss-greet-st i{background:var(--accent);animation:ssPulse 2s infinite}
+
+/* Chart links as thumbnails + lightbox */
+a.ss-thumb{display:inline-flex!important;flex-direction:column;gap:6px;width:170px;height:auto!important;padding:6px!important;border-radius:14px!important;overflow:hidden;text-decoration:none;vertical-align:top}
+a.ss-thumb img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:9px;background:var(--bg-2);transition:transform .35s var(--ease)}
+a.ss-thumb:hover img{transform:scale(1.04)}
+a.ss-thumb span{font-size:11.5px;color:var(--muted);text-align:center;direction:ltr}
+@media (max-width:560px){a.ss-thumb{width:calc(50% - 8px)}}
+.ss-lightbox{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(20px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom));background:rgba(5,7,10,.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);opacity:0;transition:opacity .2s}
+.ss-lightbox.on{opacity:1}
+.ss-lightbox img{max-width:100%;max-height:80vh;border-radius:14px;border:1px solid var(--line);box-shadow:0 30px 80px -20px #000;transform:scale(.97);transition:transform .25s var(--ease)}
+.ss-lightbox.on img{transform:none}
+.ss-lightbox a{color:var(--accent);font-size:13px;text-decoration:none}
+@media (prefers-reduced-motion:reduce){.ss-greet,.ss-greet-st i,a.ss-thumb img{animation:none;transition:none}}
