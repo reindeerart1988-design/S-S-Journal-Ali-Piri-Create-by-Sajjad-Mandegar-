@@ -4,7 +4,6 @@ const NEW_VERSION=70;
 function redraw(){renderFormChecklist();renderStandaloneChecklist();}
 function clear(){epoch++;uid=null;window.ownerChecklist57=null;const i=SETUP_ORDER.indexOf('owner57');if(i>=0)SETUP_ORDER.splice(i,1);if(formSetupId==='owner57'){formSetupId='cisd48';formChecklistState={};}if(currentSetupId==='owner57')currentSetupId='cisd48';delete standaloneChecklistState.owner57;SETUPS.owner57={id:'owner57',label:'مدل خصوصی',steps:[]};redraw();}
 function compile(code){const m=new Function(code)();if(!m||!m.render||!m.wire||!m.steps)throw Error('Invalid private model');return m;}
-/* Trades saved before v70 keep using the previous private model. */
 function isNew(s){const v=Number(s&&s.ownerVersion);return !v||v>=NEW_VERSION;}
 function compose(oldM,newM){
  if(!newM)return oldM;
